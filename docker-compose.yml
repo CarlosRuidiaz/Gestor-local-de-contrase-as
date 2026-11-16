@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    image: pvlt:dev
+    # Solo la interfaz local del anfitrión. Nunca 0.0.0.0 hacia fuera.
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - pvlt-data:/data
+    environment:
+      PVLT_VAULT_DIR: /data
+    stdin_open: true
+    tty: true
+
+volumes:
+  pvlt-data:

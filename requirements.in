@@ -1,0 +1,14 @@
+# Fuente de requirements.txt. Regenerar dentro del contenedor de referencia:
+#   docker run --rm -v "${PWD}:/app" -w /app python:3.12-slim sh scripts/compile_requirements.sh
+
+# Ejecución
+cryptography>=45  # única biblioteca criptográfica: ChaCha20-Poly1305 y Argon2id
+fastapi
+uvicorn
+
+# Pruebas y calidad
+pytest
+httpx      # cliente de pruebas de FastAPI
+mypy
+ruff
+pip-tools

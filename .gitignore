@@ -1,0 +1,37 @@
+# Bóvedas y sus derivados. Nunca se versionan, ni siquiera las de prueba.
+*.pvlt
+*.pvlt.*
+*.bak
+*.tmp
+*.lock
+
+# Resultados crudos de los experimentos
+bench/results/raw/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Material del docente. No se redistribuye, cada integrante lo copia a mano (ver docs/referencias/README.md)
+docs/referencias/*.pdf

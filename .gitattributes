@@ -1,0 +1,6 @@
+# El equipo desarrolla en Windows y la plataforma de referencia es Linux en Docker.
+# Se fuerza LF para que los scripts y los hashes de requirements.txt no cambien entre equipos.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.pvlt binary

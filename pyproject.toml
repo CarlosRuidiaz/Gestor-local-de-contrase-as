@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pvlt"
+version = "0.1.0"
+description = "Gestor local de contraseñas con Argon2id y ChaCha20-Poly1305"
+requires-python = ">=3.12"
+# Las versiones exactas y sus hashes viven en requirements.txt (pip-compile --generate-hashes).
+dependencies = ["cryptography", "fastapi", "uvicorn"]
+
+[project.scripts]
+pvlt = "pvlt.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pvlt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: pruebas largas (por ejemplo T6 con 10 000 guardados)",
+    "browser: pruebas de navegador con Playwright (T12, T13)",
+]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["pvlt"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+# Modo estricto en las capas que tocan claves, formato y disco.
+[[tool.mypy.overrides]]
+module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*"]
+strict = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# S (bandit) vigila, entre otras cosas, el uso de `random` en lugar de `secrets`.
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+"scripts/**" = ["S101"]
