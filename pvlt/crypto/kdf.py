@@ -4,16 +4,7 @@ from __future__ import annotations
 
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 
-from pvlt.params import (
-    KEY_LEN,
-    M_COST_MAX_KIB,
-    M_COST_PER_LANE_MIN_KIB,
-    PARALLELISM_MAX,
-    PARALLELISM_MIN,
-    SALT_LEN,
-    T_COST_MAX,
-    T_COST_MIN,
-)
+from pvlt.params import KEY_LEN, SALT_LEN, argon2_limit_violation
 
 
 class KdfParameterError(ValueError):
@@ -28,12 +19,9 @@ def validate_kdf_params(salt_len: int, m_cost: int, t_cost: int, parallelism: in
     """
     if salt_len != SALT_LEN:
         raise KdfParameterError("salt length out of range")
-    if not PARALLELISM_MIN <= parallelism <= PARALLELISM_MAX:
-        raise KdfParameterError("parallelism out of range")
-    if not T_COST_MIN <= t_cost <= T_COST_MAX:
-        raise KdfParameterError("t_cost out of range")
-    if not M_COST_PER_LANE_MIN_KIB * parallelism <= m_cost <= M_COST_MAX_KIB:
-        raise KdfParameterError("m_cost out of range")
+    violation = argon2_limit_violation(m_cost, t_cost, parallelism)
+    if violation is not None:
+        raise KdfParameterError(f"{violation} out of range")
 
 
 def derive_kek(

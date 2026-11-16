@@ -31,11 +31,20 @@ Estado al 2026-11-15: capa completa, 67 pruebas en verde dentro del contenedor y
 
 ## Fase 2 · `storage/`
 
-- [ ] Dataclass `Header` y `VaultFile` con `pack()` y `unpack()` según la tabla de `diseno.md` §5. Los desplazamientos se definen en una sola tabla reutilizada por las pruebas.
-- [ ] Validación de la comprobación 1 (formato, versión, ids, límites, longitudes) y 2 (digest con `hmac.compare_digest`).
-- [ ] Guardado atómico con puntos de inyección de fallo, respaldo, lock y fsync del directorio.
-- [ ] Recuperación al iniciar: limpiar temporales, ofrecer `.bak`, advertir retroceso.
-- [ ] T4 (parte de formato), T5, T7.
+- [x] Dataclass `Header` y `VaultFile` con `pack()` y `unpack()` según la tabla de `diseno.md` §5. Los desplazamientos se definen en una sola tabla reutilizada por las pruebas.
+- [x] Validación de la comprobación 1 (formato, versión, ids, límites, longitudes) y 2 (digest con `hmac.compare_digest`).
+- [x] Guardado atómico con puntos de inyección de fallo, respaldo, lock y fsync del directorio.
+- [x] Recuperación al iniciar: limpiar temporales, ofrecer `.bak`, advertir retroceso.
+- [x] T4 (parte de formato), T5, T7.
+
+Estado al 2026-11-15: capa completa, 194 pruebas en verde dentro del contenedor (127 de `storage/`) y `mypy` estricto sin errores.
+
+- `format.py` define los desplazamientos en dos tablas (`HEADER_FIELDS` y `ENVELOPE_FIELDS`). Una prueba las compara con la tabla de `diseno.md` §5 copiada a mano, y T5 recorre esas mismas tablas.
+- `store.py` expone seis puntos de interrupción (`SaveStep`). T7 corta el guardado en cada uno y comprueba que siempre queda una versión íntegra.
+- La versión vigente solo se copia a `.bak` si supera las comprobaciones 1 y 2. Así una bóveda dañada nunca destruye el último respaldo bueno.
+- `lock.py` usa un bloqueo del núcleo sobre `boveda.pvlt.lock` (`flock` en POSIX, `msvcrt.locking` en Windows). El núcleo lo libera cuando el proceso termina, incluso si muere de forma abrupta.
+- Límite de esta capa, cubierto por una prueba explícita: quien altera un campo y recalcula el SHA-256 supera las comprobaciones 1 y 2. El rechazo de ese archivo corresponde a las etiquetas AEAD de las comprobaciones 3 y 4, que se prueban en la Fase 3.
+- Pendiente para la Fase 3: la parte de T4 y T5 que necesita claves (contraseña incorrecta, alteraciones con resumen recalculado, intercambio de C entre bóvedas).
 
 ## Fase 3 · `vault/`
 
