@@ -1,5 +1,7 @@
 # Plan de implementación
 
+El estado actual, el siguiente paso y la bitácora están en [`estado.md`](estado.md). Las reglas y el flujo de trabajo están en [`guia_desarrollo.md`](guia_desarrollo.md).
+
 Orden pensado para que la criptografía sea demostrable lo antes posible. Si la interfaz web se retrasa, todo lo de las fases 0 a 4 sigue siendo evaluable con el CLI. Marcar cada casilla al terminar y anotar en `desviaciones.md` lo que cambie respecto al diseño.
 
 Las fases 1 y 2 pueden avanzar en paralelo (dos personas), igual que la 5 respecto a la 6.
