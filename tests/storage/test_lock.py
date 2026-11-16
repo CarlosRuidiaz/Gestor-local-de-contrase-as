@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -11,7 +12,10 @@ import pytest
 from pvlt.storage import VaultLock, VaultLockedError
 from pvlt.storage.lock import lock_path
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 HOLDER = """
+import os
 import sys
 from pathlib import Path
 from pvlt.storage import VaultLock
@@ -19,6 +23,7 @@ lock = VaultLock(Path(sys.argv[1]))
 lock.acquire()
 print("ready", flush=True)
 sys.stdin.readline()
+os._exit(1)  # die without releasing the lock or running any cleanup
 """
 
 
@@ -73,7 +78,7 @@ def test_locks_of_different_vaults_are_independent(tmp_path: Path) -> None:
 
 def test_lock_file_is_empty_and_does_not_touch_the_vault(vault: Path) -> None:
     with VaultLock(vault):
-        assert lock_path(vault).read_bytes() == b""
+        assert lock_path(vault).stat().st_size == 0  # Windows refuses to read a locked file
         assert not vault.exists()
     assert sorted(p.name for p in vault.parent.iterdir()) == ["boveda.pvlt.lock"]
 
@@ -84,6 +89,7 @@ def test_another_process_holds_the_lock_until_it_dies(vault: Path) -> None:
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
+        env=os.environ | {"PYTHONPATH": str(REPO_ROOT)},
     )
     try:
         assert holder.stdout is not None
@@ -91,8 +97,11 @@ def test_another_process_holds_the_lock_until_it_dies(vault: Path) -> None:
         with pytest.raises(VaultLockedError):
             VaultLock(vault).acquire()
 
-        holder.kill()  # abrupt death: no cleanup code runs in the holder
-        holder.wait(timeout=10)
+        # The holder dies abruptly (os._exit) as soon as its stdin closes. Killing it
+        # from here would only kill the launcher that a Windows venv puts in front.
+        assert holder.stdin is not None
+        holder.stdin.close()
+        assert holder.wait(timeout=10) == 1
         with VaultLock(vault):
             pass
     finally:
