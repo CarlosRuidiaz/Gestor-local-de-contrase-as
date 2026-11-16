@@ -59,6 +59,8 @@ C   = ChaCha20Poly1305(DEK).encrypt(N_d, pad(P), b"PVLT/v1/data" || Hdr || W)  #
 3. Derivar la KEK con la configuración vigente.
 4. Guardar (4.3) con la lista de entradas vacía.
 
+Concreciones **(concreción)**: la contraseña maestra y la de exportación deben tener entre 8 y 1024 caracteres al fijarse. `create` se niega a sobrescribir cualquier archivo existente.
+
 ### 4.3 Guardar
 
 1. `generation += 1` (salvo al crear).
@@ -89,6 +91,14 @@ Verificar la actual (derivar con la sal vigente y abrir W), nueva sal, nueva KEK
 - Exportación: mismo formato, `purpose = 0x02`, contraseña de exportación propia (sal y KEK propias), `vault_id` nuevo **(concreción)**.
 - Importación: mismas cuatro comprobaciones exigiendo `purpose = 0x02`, validar cada entrada, vista previa. Conflicto si coincide el UUID o el par `(site, username)`: el usuario elige omitir, sustituir o conservar ambos (conservar ambos asigna UUID nuevo).
 
+Concreciones de la importación **(concreción)**:
+
+- Un conflicto sin decisión del usuario se omite, que es la opción que no destruye nada.
+- Sustituir conserva el UUID y la fecha de creación de la entrada local y toma los datos de la importada.
+- Los conflictos se recalculan al aplicar, por si la bóveda cambió después de la vista previa o dos entradas importadas chocan entre sí.
+- Toda la importación se escribe con un solo guardado. Si el resultado supera las 500 entradas no se importa nada.
+- La exportación usa los mismos parámetros de Argon2id que la bóveda y nunca deja respaldo.
+
 ### 4.7 Unicidad de nonces
 
 Bajo cada DEK hay un único cifrado. Bajo la KEK, nonce aleatorio de 96 bits por guardado, probabilidad de colisión a lo sumo q²/2^97, cota conservadora de 2^32 cifrados por clave tomada de SP 800-38D. La KEK cambia con cada cambio de contraseña.
@@ -100,10 +110,19 @@ Bajo cada DEK hay un único cifrado. Bajo la KEK, nonce aleatorio de 96 bits por
 - Mostrar entropía = longitud × log2(tamaño del alfabeto).
 - Conjunto de símbolos **(concreción)**: `!#$%&()*+,-./:;<=>?@[]^_{|}~` (sin comillas ni barra invertida para evitar problemas al pegar).
 
+Nota **(concreción)**: la entropía mostrada es una cota superior. Descartar las candidatas a las que les falta una clase quita una fracción de bit (unos 0,15 bits con la configuración por defecto). Por la misma razón, en contraseñas cortas las clases pequeñas aparecen algo más de lo que les correspondería por tamaño, aunque dentro de cada clase todos los caracteres siguen siendo equiprobables. T11 comprueba la uniformidad dentro de cada clase y, con longitud 128, sobre el alfabeto completo.
+
 ### 4.9 Bloqueo y memoria
 
 - Bloqueo por botón, cierre del programa o 5 minutos de inactividad (configurable).
 - La KEK se guarda en un `bytearray` propio y se sobrescribe con ceros al bloquear (usar `derive_into` si existe). Se eliminan referencias al contenido. Es esfuerzo razonable, no garantía.
+
+Concreciones **(concreción)**:
+
+- Cada operación comprueba primero la inactividad y, si no venció, cuenta como actividad. Consultar si la bóveda está bloqueada no cuenta como actividad.
+- El contenido descifrado vive en cadenas inmutables de Python, que no pueden sobrescribirse. Al bloquear se sobrescribe la KEK y se sueltan las referencias al contenido.
+- Todo cambio se escribe en disco antes de hacerse visible en memoria. Si el guardado falla, la sesión y el archivo quedan como estaban.
+- Al cambiar la contraseña maestra hay una ventana breve, entre el guardado y la reescritura del respaldo, en la que el `.bak` todavía abre con la contraseña anterior.
 
 ## 5. Formato binario v1
 
@@ -166,6 +185,13 @@ JSON UTF-8 canónico: `json.dumps(obj, sort_keys=True, separators=(",", ":"), en
 ```
 
 Relleno: `pad(P) = P || 0x80 || 0x00 * k`, con k mínimo tal que la longitud sea múltiplo de 4096. Al quitarlo, buscar el último `0x80` y exigir que todo lo posterior sea cero. Si no, `TamperedContentError`.
+
+Concreciones del contenido **(concreción)**:
+
+- Límites por campo, en caracteres: `site` de 1 a 256, `username` de 0 a 256, `password` de 1 a 1024 y `notes` de 0 a 8192. Ningún campo admite el carácter nulo.
+- `autolock_seconds` entre 30 y 3600. `generator.length` entre 8 y 128 y al menos una clase activa.
+- Al abrir solo se acepta la codificación canónica: tras parsear, el contenido se vuelve a serializar y debe coincidir byte a byte con lo descifrado. También se rechazan claves duplicadas, claves desconocidas, tipos incorrectos, identificadores repetidos y más de 500 entradas. Todo ello es `TamperedContentError`.
+- El relleno debe ser mínimo: más de 4095 ceros tras el `0x80` se rechaza.
 
 Versionado: `format_version` (estructura binaria) y `schema` (JSON) son independientes. Versiones desconocidas se rechazan. Migración futura: abrir con el lector anterior y guardar con el nuevo.
 

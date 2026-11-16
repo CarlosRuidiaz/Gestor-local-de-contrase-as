@@ -2,13 +2,13 @@
 
 Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pull`, lee esto y ya sabe dónde está el proyecto y qué sigue. Las reglas y el flujo están en [`guia_desarrollo.md`](guia_desarrollo.md).
 
-Última actualización: 2026-11-16, Carlos Ruidiaz.
+Última actualización: 2026-11-16, Carlos Ruidiaz (Fase 3).
 
 ## Resumen
 
-Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/` y `storage/` están terminadas y probadas. Falta `vault/`, el CLI, la interfaz web, los experimentos y el cierre (README, guion de demostración e informe).
+Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/` y `vault/` están terminadas y probadas: toda la lógica del producto existe y se puede usar desde Python. Falta ponerle interfaz (CLI y web), los experimentos y el cierre (README, guion de demostración e informe).
 
-La suite tiene 194 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos.
+La suite tiene 410 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre T1 a T8, T10 y T11. Faltan T9, T12 y T13, que dependen de la interfaz web.
 
 ## Fases
 
@@ -17,8 +17,8 @@ La suite tiene 194 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 0 | Andamiaje, Docker, dependencias, verificación del entorno | Terminada | Carlos Ruidiaz | fusionada |
 | 1 | `crypto/`: KEK con Argon2id, AEAD, aleatoriedad, borrado. T10 | Terminada | Carlos Ruidiaz | fusionada |
 | 2 | `storage/`: formato v1, comprobaciones 1 y 2, guardado atómico, lock. T4 (formato), T5 (sin claves), T7 | Terminada | Claudia Elias | fusionada |
-| 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | **Siguiente** | Carlos Ruidiaz | sin empezar |
-| 4 | CLI mínimo con `getpass` | Pendiente | sin asignar | |
+| 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
+| 4 | CLI mínimo con `getpass` | **Siguiente** | sin asignar | sin empezar |
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Pendiente | sin asignar | |
 | 6 | Experimentos E1, E2, E3 y gráficas | Pendiente | sin asignar | |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
@@ -27,40 +27,45 @@ El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](p
 
 ## Siguiente paso
 
-**Fase 3, `pvlt/vault/`**, en una rama `feat/vault`. Tareas, en el orden sugerido:
+**Fase 4, `pvlt/cli.py`**, en una rama `feat/cli`. Es corta y desbloquea las fases 5 y 6, que después pueden avanzar en paralelo.
 
-1. Excepciones de la capa: `WrongPasswordError` ("Contraseña incorrecta") y `TamperedContentError` ("Contenido manipulado"). Las otras dos categorías ya existen en `storage/` (`FormatError`, `CorruptedFileError`).
-2. Modelo de entrada y contenido: JSON canónico, validación de esquema, relleno a 4096 con `0x80` y su retiro estricto (`diseno.md` §5.1).
-3. Sellado y apertura del archivo completo (`diseno.md` §4.1 y §4.4): construir `Hdr`, cifrar la DEK como `W` y el contenido como `C` con los datos asociados exactos, y las comprobaciones 3 y 4.
-4. Operaciones: `create`, `unlock`, `save`, `lock`, `change_password`, `export`, `import_preview`, `import_apply` (`diseno.md` §4.2 a §4.6).
-5. Sesión con temporizador de inactividad y reloj inyectable para las pruebas.
-6. Generador con muestreo por rechazo y cálculo de entropía (`diseno.md` §4.8).
-7. Pruebas T1, T2, T3, T6, T8, T11, y lo que falta de T4 y T5: contraseña incorrecta, alteración de cada campo **con el resumen recalculado**, e intercambio de `C` entre bóvedas.
+1. Subcomandos `create`, `unlock` (abre y lista), `add`, `list`, `get`, `change-password`, `export`, `import` y `generate`, con `argparse`.
+2. Toda contraseña se pide con `getpass`. Nunca por argumento ni variable de entorno (regla 3). La ruta de la bóveda sí puede ir por argumento o por `PVLT_VAULT_DIR`.
+3. Al arrancar, abrir un `Workspace` (toma el lock y hace la recuperación). Si `report.can_restore_backup`, ofrecer restaurar. Si `report.possible_rollback`, advertir.
+4. Traducir cada excepción a su mensaje y a un código de salida distinto de cero, sin trazas.
+5. Pruebas del CLI con `getpass` sustituido, incluido que la contraseña no aparece en `sys.argv` ni en la salida.
 
-### Qué ofrece ya el código para la Fase 3
+La **Fase 5** (`web/`) usa exactamente la misma API. La **Fase 6** puede empezar en cuanto exista el CLI o directamente contra `Vault`.
 
-`from pvlt import params`:
+### Qué ofrece ya el código
 
-- `KEY_LEN`, `NONCE_LEN`, `TAG_LEN`, `SALT_LEN`, `PAD_BLOCK`.
-- `WRAP_LABEL` y `DATA_LABEL`, las etiquetas de dominio exactas.
-- `CONFIG_A`, `CONFIG_B`, `CONFIG_C` (`Argon2Params` con `m_cost`, `t_cost`, `parallelism`) y `M_COST_CREATE_MIN_KIB`.
+`from pvlt.vault import ...` es lo único que deben importar el CLI y la capa web:
 
-`from pvlt.crypto import ...`:
+- `Workspace(path)`: se abre una vez al arrancar el programa, utilizable con `with`. Toma el lock (`VaultLockedError` si otro proceso lo tiene) y deja en `.report` un `RecoveryReport` con `vault`, `backup`, `can_restore_backup` y `possible_rollback`. `restore_backup()` restaura el `.bak` a petición del usuario.
+- `Vault.create(path, password, params=CONFIG_B)` y `Vault.unlock(path, password)`. Ambos devuelven una bóveda desbloqueada. Aceptan `clock` y `now` inyectables para las pruebas.
+- Sesión: `lock()`, `is_locked`, `seconds_until_autolock()`. Toda operación sobre una bóveda bloqueada lanza `SessionLockedError`.
+- Lectura: `len(vault)`, `list_entries(query="")` (devuelve `EntrySummary` sin contraseña ni notas), `get(id)` (devuelve `Entry` completa), `settings`, `generation`.
+- Cambios: `add(site=, username=, password=, notes=)`, `update(id, ...)`, `delete(id)`, `update_settings(autolock_seconds=, generator=)`. Cada uno guarda en disco.
+- `generate_password(settings=None)`, y fuera de la bóveda `generate(GeneratorSettings(...))` y `entropy_bits(...)`.
+- `change_password(current, new)`.
+- `export(destination, password, overwrite=False)`, `import_preview(source, password)` e `import_apply(preview, decisions)` con `ImportDecision.SKIP`, `REPLACE` o `KEEP_BOTH` por id de entrada importada.
 
-- `derive_kek(password, salt, m_cost, t_cost, parallelism) -> bytearray`. Valida los límites antes de derivar. Lanza `KdfParameterError`.
-- `seal(key, nonce, plaintext, aad) -> bytes` y `open_(key, nonce, ciphertext, aad) -> bytes`. `open_` lanza `AuthenticationError` sin datos. La capa `vault/` la traduce: al abrir `W` es `WrongPasswordError`, al abrir `C` es `TamperedContentError`.
-- `random_bytes(n)` y `zeroize(buf)`.
+Excepciones que la interfaz debe traducir. El texto de cada una ya es el mensaje en español para el usuario:
 
-`from pvlt.storage import ...`:
+| Excepción | Origen | Mensaje |
+|---|---|---|
+| `FormatError` | `pvlt.storage` | Formato no reconocido |
+| `CorruptedFileError` | `pvlt.storage` | Archivo dañado (ofrecer el respaldo) |
+| `WrongPasswordError` | `pvlt.vault` | Contraseña incorrecta |
+| `TamperedContentError` | `pvlt.vault` | Contenido manipulado |
+| `SessionLockedError` | `pvlt.vault` | La bóveda está bloqueada |
+| `ValidationError` | `pvlt.vault` | Dato inválido (el atributo `field` dice cuál) |
+| `EntryNotFoundError` | `pvlt.vault` | La entrada no existe |
+| `VaultExistsError` | `pvlt.vault` | Ya existe un archivo en esa ruta |
+| `VaultLockedError` | `pvlt.storage` | La bóveda ya está abierta en otro proceso |
+| `FileNotFoundError` | Python | No hay bóveda en esa ruta (ofrecer crearla) |
 
-- `Header(purpose, m_cost, t_cost, parallelism, salt, vault_id, generation)` con `pack()`, que devuelve los 59 bytes de `Hdr`.
-- `VaultFile(header, nonce_w, wrapped_key, nonce_d, ciphertext)` con `pack()`, que devuelve el archivo completo con su resumen.
-- `Purpose.VAULT` y `Purpose.EXPORT`.
-- `load(path, purpose) -> VaultFile` (comprobaciones 1 y 2, nunca escribe) y `unpack(data, purpose)`.
-- `atomic_save(path, data, purpose=..., make_backup=..., fault_hook=...)`. Para exportar se usa `make_backup=False`.
-- `write_backup(path, data)`, que hace falta tras cambiar la contraseña maestra para regenerar el `.bak`.
-- `recover(path) -> RecoveryReport` (limpia temporales, informa `can_restore_backup` y `possible_rollback`) y `restore_backup(path)`.
-- `VaultLock(path)`, utilizable con `with`. Lanza `VaultLockedError`.
+Las capas inferiores (`pvlt.crypto`, `pvlt.storage`) siguen disponibles para los experimentos de la Fase 6, por ejemplo `derive_kek` para E1 y `seal_file` y `open_file` de `pvlt.vault.envelope` para E2.
 
 ### Qué leer por fase
 
@@ -89,6 +94,14 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-15 | El SHA-256 del resumen se calcula con `cryptography`, no con `hashlib` | Una sola biblioteca criptográfica en el producto. Las pruebas sí usan `hashlib` como implementación independiente |
 | 2026-11-15 | `playwright` no está en `requirements.in` todavía | Se añade en la Fase 5 para no engordar la imagen antes de tiempo |
 | 2026-11-15 | Los PDF del curso no se versionan | Son material del docente |
+| 2026-11-16 | `Workspace` sostiene el lock durante todo el proceso y `Vault` no toma ningún lock | El diseño pide adquirirlo al iniciar. Así la sesión puede bloquearse y desbloquearse sin soltarlo |
+| 2026-11-16 | Todo cambio se guarda en disco antes de aplicarse en memoria | Un guardado fallido no deja la sesión distinta del archivo |
+| 2026-11-16 | Al abrir solo se acepta el JSON canónico exacto | Serialización inequívoca, como pide el enunciado |
+| 2026-11-16 | Contraseña maestra de 8 a 1024 caracteres, sin normalización Unicode | El diseño dejaba el mínimo abierto. NFC y NFD son contraseñas distintas, hay una prueba que lo fija |
+| 2026-11-16 | En la importación, un conflicto sin decisión se omite | Es la única opción que no destruye ni duplica nada |
+| 2026-11-16 | T11 comprueba la uniformidad dentro de cada clase, y sobre todo el alfabeto solo con longitud 128 | El muestreo por rechazo desplaza algo de peso entre clases en contraseñas cortas. Dentro de una clase la uniformidad es exacta |
+| 2026-11-16 | T6 hace los 10 000 guardados en memoria y otros 200 por disco | La propiedad está en el sellado. Hacer 10 000 guardados con `fsync` tardaría minutos |
+| 2026-11-16 | Dos pruebas llevan la marca `slow` (T1 con 500 entradas y T6 por disco) | Suman unos 40 s. Se ejecutan por defecto y se pueden excluir con `-m "not slow"` |
 
 ## Pendientes y advertencias
 
@@ -96,11 +109,23 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 - **El resumen SHA-256 no protege contra manipulación.** Quien altera un campo y recalcula el resumen supera las comprobaciones 1 y 2. `tests/storage/test_format.py` lo deja explícito. La Fase 3 debe demostrar que las etiquetas AEAD rechazan esos archivos.
 - **Configuración final de Argon2id:** se decide en la Fase 6 con los resultados de E1. Por ahora el valor por defecto propuesto es la configuración B.
 - **Reconstruir la imagen tras cada cambio.** El código se copia a la imagen, no se monta. Sin `docker compose build` las pruebas corren contra la versión anterior.
+- **Docker Desktop no arranca y muestra "remove ...sock: El sistema no tiene acceso al archivo".** Pasa si se lanza dos veces o tras un cierre brusco. Se arregla finalizando todos los procesos de Docker desde el Administrador de tareas y abriéndolo una sola vez. No hace falta "Reset to factory defaults".
+- **La suite completa tarda cerca de dos minutos** en el contenedor. Para iterar, `pytest -m "not slow"` o un solo archivo.
+- **Las pruebas también pasan en Windows** con Python 3.14, salvo dos de permisos POSIX que se omiten solas. Sirve para iterar rápido, pero la referencia sigue siendo el contenedor.
+- **Ventana en el cambio de contraseña:** entre el guardado y la reescritura del respaldo, el `.bak` todavía abre con la contraseña anterior. Está documentado en `diseno.md` §4.9. Conviene mencionarlo en el informe como limitación.
 - **Timeouts de PyPI** al regenerar `requirements.txt`. Usar `PIP_DEFAULT_TIMEOUT=120` como indica la guía.
 
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-16 · Carlos Ruidiaz · `feat/vault`
+
+- Fase 3 completa: `vault/errors.py`, `model.py`, `envelope.py`, `vault.py`, `generator.py` y `workspace.py`. 216 pruebas nuevas.
+- Quedan cubiertas T1, T2, T3, T6, T8 y T11, y la parte de T4 y T5 que necesitaba claves (alteración de cada campo con el resumen recalculado, intercambio de `C`, mezcla de generaciones).
+- Cambio menor fuera de la capa: `crypto.seal` acepta también `bytearray` como texto a cifrar, para sellar la DEK sin copiarla a `bytes`.
+- Se ajustaron dos pruebas de `storage/` para que también pasen en Windows (el archivo de lock no se puede leer mientras está tomado).
+- Sigue: Fase 4 (CLI). Está descrita arriba con la API que debe usar.
 
 ### 2026-11-16 · Carlos Ruidiaz · `docs/guia-desarrollo`
 

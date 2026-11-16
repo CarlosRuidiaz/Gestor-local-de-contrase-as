@@ -50,11 +50,13 @@ Estado al 2026-11-15: capa completa, 194 pruebas en verde dentro del contenedor 
 
 ## Fase 3 · `vault/`
 
-- [ ] Modelo de entrada, JSON canónico, relleno y su retiro estricto.
-- [ ] `create`, `unlock` (cuatro comprobaciones con excepciones propias), `save`, `lock`, `change_password`, `export`, `import_preview`, `import_apply`.
-- [ ] Sesión con temporizador de inactividad inyectable (reloj falso en pruebas).
-- [ ] Generador con muestreo por rechazo y cálculo de entropía.
-- [ ] T1, T2, T3, T6, T8, T11.
+- [x] Modelo de entrada, JSON canónico, relleno y su retiro estricto.
+- [x] `create`, `unlock` (cuatro comprobaciones con excepciones propias), `save`, `lock`, `change_password`, `export`, `import_preview`, `import_apply`.
+- [x] Sesión con temporizador de inactividad inyectable (reloj falso en pruebas).
+- [x] Generador con muestreo por rechazo y cálculo de entropía.
+- [x] T1, T2, T3, T6, T8, T11.
+
+Estado al 2026-11-16: capa completa, 410 pruebas en verde dentro del contenedor (216 de `vault/`) y `mypy` estricto sin errores. Con esto quedan cubiertas T1 a T8, T10 y T11. El detalle de las decisiones está en `estado.md` y las concreciones en `diseno.md`.
 
 ## Fase 4 · CLI mínimo
 

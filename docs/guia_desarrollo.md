@@ -85,6 +85,7 @@ Todo se ejecuta dentro del contenedor. El código se copia a la imagen al constr
 ```
 docker compose build
 docker compose run --rm app pytest
+docker compose run --rm app pytest -m "not slow"   # sin las dos pruebas largas, para iterar
 docker compose run --rm app mypy
 docker compose run --rm app ruff check .
 docker compose run --rm app ruff format --check .

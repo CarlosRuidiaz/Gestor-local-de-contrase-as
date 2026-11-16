@@ -29,7 +29,7 @@ def _check_lengths(key: Key, nonce: bytes) -> None:
         raise ValueError("nonce must be 12 bytes")
 
 
-def seal(key: Key, nonce: bytes, plaintext: bytes, aad: bytes) -> bytes:
+def seal(key: Key, nonce: bytes, plaintext: bytes | bytearray, aad: bytes) -> bytes:
     """Encrypt and authenticate. Returns ciphertext followed by the 16-byte tag.
 
     The caller is responsible for never reusing a nonce under the same key.
