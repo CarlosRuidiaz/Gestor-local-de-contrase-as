@@ -2,7 +2,9 @@
 
 Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pull`, lee esto y ya sabe dónde está el proyecto y qué sigue. Las reglas y el flujo están en [`guia_desarrollo.md`](guia_desarrollo.md).
 
-Última actualización: 2026-11-16, Carlos Ruidiaz (Fase 3).
+**Antes de hacer cualquier commit** hay que leer la sección "Reglas de autoría y de lo que se sube" de la guía. Indica quién firma cada fase, qué no puede subirse nunca y cómo se sube.
+
+Última actualización: 2026-11-16, Carlos Ruidiaz (reglas de autoría).
 
 ## Resumen
 
@@ -22,6 +24,8 @@ La suite tiene 410 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Pendiente | sin asignar | |
 | 6 | Experimentos E1, E2, E3 y gráficas | Pendiente | sin asignar | |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
+
+Las fases 4 a 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
 
 El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](plan_implementacion.md). Las fases 5 y 6 pueden avanzar en paralelo una vez exista la 4.
 
@@ -94,6 +98,7 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-15 | El SHA-256 del resumen se calcula con `cryptography`, no con `hashlib` | Una sola biblioteca criptográfica en el producto. Las pruebas sí usan `hashlib` como implementación independiente |
 | 2026-11-15 | `playwright` no está en `requirements.in` todavía | Se añade en la Fase 5 para no engordar la imagen antes de tiempo |
 | 2026-11-15 | Los PDF del curso no se versionan | Son material del docente |
+| 2026-11-16 | Cada fase la firma su responsable, sin firmas de herramientas, y no se reescribe el historial de `main` | Acuerdo del equipo. El detalle está en la guía |
 | 2026-11-16 | `Workspace` sostiene el lock durante todo el proceso y `Vault` no toma ningún lock | El diseño pide adquirirlo al iniciar. Así la sesión puede bloquearse y desbloquearse sin soltarlo |
 | 2026-11-16 | Todo cambio se guarda en disco antes de aplicarse en memoria | Un guardado fallido no deja la sesión distinta del archivo |
 | 2026-11-16 | Al abrir solo se acepta el JSON canónico exacto | Serialización inequívoca, como pide el enunciado |
@@ -118,6 +123,12 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-16 · Carlos Ruidiaz · `docs/reglas-autoria`
+
+- Se añade a la guía la sección "Reglas de autoría y de lo que se sube": quién firma, qué no se sube nunca y cómo se sube.
+- Sin cambios de código.
+- Sigue: Fase 4 (CLI), sin asignar.
 
 ### 2026-11-16 · Carlos Ruidiaz · `feat/vault`
 

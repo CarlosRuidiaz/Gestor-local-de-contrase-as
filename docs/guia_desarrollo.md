@@ -9,7 +9,7 @@ Esta guía contiene lo que no cambia de una sesión de trabajo a otra: reglas, c
 
 1. `git pull` sobre `main`.
 2. Leer [`estado.md`](estado.md) completo. Dice en qué punto está el proyecto, cuál es la siguiente tarea y qué advertencias dejó la última persona.
-3. Leer esta guía, sobre todo las reglas no negociables.
+3. Leer esta guía, sobre todo las reglas no negociables y las reglas de autoría y de lo que se sube.
 4. Leer de [`diseno.md`](diseno.md) las secciones que toca la fase que se va a trabajar. La sección "Qué leer por fase" de `estado.md` las enumera.
 5. Comprobar que el entorno funciona antes de cambiar nada (ver "Comandos"). La suite debe estar en verde al empezar.
 6. Trabajar en una rama, y **antes de cada push actualizar `estado.md`** (ver "Antes de cada push").
@@ -69,6 +69,35 @@ Vienen del enunciado o del diseño entregado. Romper cualquiera afecta directame
 9. **Datos de prueba sintéticos.** Nunca contraseñas reales.
 10. **Cualquier cambio al formato, protocolo o parámetros se anota en `desviaciones.md`** con fecha, qué cambió y por qué.
 
+## Reglas de autoría y de lo que se sube
+
+Son acuerdos del equipo y tienen el mismo peso que las reglas no negociables. Valen para cualquier persona y para cualquier herramienta que haga commits en su nombre. Quien use un asistente o una automatización es responsable de que las cumpla, y debe indicárselas antes de dejarle hacer un commit.
+
+### Autoría
+
+1. **Cada fase la firma el integrante que la tiene asignada** en la tabla de `estado.md`. Si la fase que se va a empezar figura "sin asignar", primero se acuerda con el equipo y se anota el responsable.
+2. **El autor y el committer de cada commit son esa persona**, con el nombre y el correo asociados a su cuenta de GitHub. En el equipo propio basta con tener bien configurado `git config user.name` y `user.email`.
+3. **Si se trabaja desde el equipo de otro integrante**, no se cambia la configuración global de git de esa máquina. La identidad se fija solo para los comandos que hacen commit, con las variables `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` y `GIT_COMMITTER_EMAIL`. Antes de hacer push se comprueba con `git log --format='%an <%ae> / %cn'`.
+4. **El commit de merge lo firma la misma persona** que hizo la rama.
+5. **Los commits no llevan firmas ni pies añadidos por herramientas.** Nada de líneas `Co-authored-by`, "Generated with" ni similares. El mensaje contiene solo el asunto y, si hace falta, el cuerpo.
+6. **Ni los mensajes de commit, ni el código, ni la documentación mencionan las herramientas** con las que se escribieron (editores, asistentes, automatizaciones). El repositorio describe el producto y las decisiones del equipo.
+
+### Qué no se sube nunca
+
+- Archivos de instrucciones, memoria o configuración de asistentes y editores, tengan el nombre que tengan, ni sus carpetas ocultas. Cada quien los ignora en su clon con `.git/info/exclude`, que es local, y no en `.gitignore`, que es compartido.
+- Bóvedas y sus derivados (`*.pvlt`, `.bak`, `.tmp`, `.lock`), aunque sean de prueba.
+- Los PDF del curso. Son material del docente.
+- Contraseñas, claves o datos reales de cualquier tipo. Los datos de prueba son siempre sintéticos.
+- Entornos virtuales, cachés y resultados crudos de experimentos.
+
+### Cómo se sube
+
+- Los archivos se añaden por ruta (`git add pvlt/cli.py tests/...`). No se usa `git add -A` ni `git add .` sin haber leído antes `git status`.
+- Antes de cada commit se revisa `git status` y `git diff --staged`. Si aparece un archivo que no es del proyecto, se saca y se ignora localmente.
+- No se hace push a `main` con la suite en rojo ni sin haber actualizado `estado.md`.
+- **No se reescribe el historial de `main`** (`push --force`, `rebase` sobre commits ya subidos, `commit --amend` de algo publicado). Si algo se subió por error, se avisa al equipo antes de tocar nada, porque arreglarlo afecta a los clones de todos.
+- No se cambian dependencias, formato, protocolo ni parámetros como efecto lateral de otra tarea. Van en su propio commit y con su anotación en `desviaciones.md` o `diseno.md`.
+
 ## Convenciones de código
 
 - Identificadores, nombres de módulos y docstrings técnicos en inglés. Mensajes de la interfaz, README, documentación e informe en español.
@@ -108,19 +137,19 @@ docker run --rm -e PIP_DEFAULT_TIMEOUT=120 -v "${PWD}:/app" -w /app python:3.12-
 
 - Una rama por fase o por tema: `feat/crypto`, `feat/storage`, `feat/vault`, `fix/...`, `docs/...`.
 - Commits pequeños por tema con Conventional Commits en español, en minúsculas y sin tildes en el asunto: `feat(storage): ...`, `test(vault): ...`, `fix(web): ...`, `docs: ...`, `refactor(params): ...`, `chore: ...`. El cuerpo es opcional, una o dos frases que expliquen el porqué.
-- Cada integrante hace los commits con su propia identidad de git (nombre y correo asociados a su cuenta de GitHub).
+- La identidad de los commits y lo que puede subirse se rigen por la sección "Reglas de autoría y de lo que se sube".
 - La rama se fusiona en `main` con un commit de merge (`git merge --no-ff`) cuando la suite, `mypy` y `ruff` están en verde. Después se borra.
-- No se versionan bóvedas (`*.pvlt` y derivados), resultados crudos de experimentos, entornos virtuales, los PDF del curso ni archivos de configuración personales de editores o herramientas.
 
 ## Antes de cada push
 
 Es el paso que permite que la siguiente persona retome con solo hacer `git pull`. No es opcional.
 
 1. `pytest`, `mypy`, `ruff check` y `ruff format --check` en verde dentro del contenedor.
-2. Marcar en `plan_implementacion.md` las casillas terminadas.
-3. Actualizar `estado.md`:
+2. Comprobar el autor de los commits y que no entró ningún archivo ajeno al proyecto (`git log --format='%an <%ae> / %cn'` y `git status`).
+3. Marcar en `plan_implementacion.md` las casillas terminadas.
+4. Actualizar `estado.md`:
    - la tabla de fases y la sección "Siguiente paso",
    - las decisiones nuevas, si las hubo,
    - una entrada nueva al principio de la bitácora.
-4. Si se cambió algo del formato, protocolo o parámetros, anotarlo en `desviaciones.md` o como concreción en `diseno.md`.
-5. Si el trabajo queda a medias, decirlo con claridad en la bitácora: qué funciona, qué no, y por dónde seguir. Es preferible subir una rama a medias bien descrita que dejar el trabajo solo en un equipo.
+5. Si se cambió algo del formato, protocolo o parámetros, anotarlo en `desviaciones.md` o como concreción en `diseno.md`.
+6. Si el trabajo queda a medias, decirlo con claridad en la bitácora: qué funciona, qué no, y por dónde seguir. Es preferible subir una rama a medias bien descrita que dejar el trabajo solo en un equipo.
