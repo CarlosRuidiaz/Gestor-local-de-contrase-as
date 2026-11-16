@@ -134,6 +134,10 @@ Enteros sin signo big-endian. Desplazamientos en bytes.
 - El tamaño total debe ser exactamente `135 + len_C + 32`. Cualquier byte sobrante o faltante es `FormatError`.
 - `len_C` debe ser `≥ 4096 + 16` y `(len_C − 16) % 4096 == 0`.
 
+- `len_C` no puede superar `16 + 4096 × 4096` bytes, es decir 16 MiB de contenido rellenado **(concreción)**. Un archivo mayor se rechaza como `FormatError` sin leerlo completo. Con 500 entradas el contenido real queda muy por debajo.
+- `generation` debe ser al menos 1 **(concreción)**. El valor 0 no puede producirse al guardar y se rechaza como `FormatError`.
+- El resumen SHA-256 se calcula con `cryptography` (`hashes.SHA256`), igual que el resto de operaciones.
+
 Límites al abrir: `m_cost ≤ 4 GiB` (4 194 304 KiB), `1 ≤ t_cost ≤ 16`, `1 ≤ parallelism ≤ 16`, y `m_cost ≥ 8 × parallelism` (mínimo de Argon2). Al crear se exige `m_cost ≥ 64 MiB` (65 536 KiB).
 
 ### 5.1 Contenido P
@@ -186,6 +190,13 @@ La configuración final es la de mayor memoria con desbloqueo ≤ 1 s en el equi
 7. `fsync` del directorio (en POSIX).
 
 Al iniciar: eliminar temporales sobrantes. Si la bóveda falla las comprobaciones 1 o 2 y el respaldo las supera, ofrecer restaurarlo sin sobrescribir el dañado (renombrarlo para análisis). Si el respaldo tiene `generation` mayor, advertir posible retroceso.
+
+Concreciones de la implementación **(concreción)**:
+
+- El archivo de bloqueo está vacío y permanece en disco entre ejecuciones. Lo que impide la segunda apertura es un bloqueo del núcleo sobre ese archivo (`flock` en POSIX, `msvcrt.locking` en Windows), que se libera solo cuando el proceso termina. Así una caída nunca deja la bóveda bloqueada y no hace falta guardar ni comprobar un PID.
+- En el paso 5 la versión vigente solo se copia al respaldo si supera las comprobaciones 1 y 2. Una bóveda dañada no reemplaza al último respaldo bueno.
+- Al restaurar, el archivo dañado se renombra a `boveda.pvlt.damaged-<fecha UTC>` y el respaldo se conserva.
+- Un error real de escritura (por ejemplo disco lleno) elimina el temporal parcial y deja la bóveda como estaba.
 
 Puntos de inyección de fallos: cada paso debe poder interrumpirse en pruebas (T7). Diseñar `storage/` con un hook o parámetro que permita simular la caída tras cada paso.
 
