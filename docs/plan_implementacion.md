@@ -16,11 +16,18 @@ Estado al 2026-11-15: andamiaje completo y verificado en el contenedor (`pytest`
 
 ## Fase 1 · `crypto/`
 
-- [ ] `derive_kek(password: bytes, salt, m_cost, t_cost, parallelism) -> bytearray`.
-- [ ] `seal(key, nonce, plaintext, aad) -> bytes` y `open_(key, nonce, ciphertext, aad) -> bytes` sobre ChaCha20-Poly1305.
-- [ ] `random_bytes(n)` con `secrets`.
-- [ ] `zeroize(buf: bytearray)`.
-- [ ] T10: vector AEAD de RFC 8439 §2.8.2 y vector Argon2id de RFC 9106 §5.3.
+- [x] `derive_kek(password: bytes, salt, m_cost, t_cost, parallelism) -> bytearray`.
+- [x] `seal(key, nonce, plaintext, aad) -> bytes` y `open_(key, nonce, ciphertext, aad) -> bytes` sobre ChaCha20-Poly1305.
+- [x] `random_bytes(n)` con `secrets`.
+- [x] `zeroize(buf: bytearray)`.
+- [x] T10: vector AEAD de RFC 8439 §2.8.2 y vector Argon2id de RFC 9106 §5.3.
+
+Estado al 2026-11-15: capa completa, 67 pruebas en verde dentro del contenedor y `mypy` estricto sin errores.
+
+- La KEK se deriva con `derive_into` directamente sobre el `bytearray` que luego borra `zeroize`.
+- `open_` lanza `AuthenticationError` sin datos ni excepción encadenada. La capa `vault/` decide si significa contraseña incorrecta (al abrir W) o contenido manipulado (al abrir C).
+- Los límites de Argon2id se validan en `validate_kdf_params` antes de construir la primitiva. Las constantes públicas del protocolo (tamaños, etiquetas de dominio, límites y configuraciones A, B y C) viven en `pvlt/params.py`, un módulo sin dependencias que `crypto/` y `storage/` comparten sin importarse entre sí.
+- El vector de RFC 9106 §5.3 usa secreto y dato asociado, que `derive_kek` no expone. Por eso T10 lo comprueba sobre la primitiva de la biblioteca y además verifica que `derive_kek` produce exactamente la salida de esa primitiva con nuestros parámetros.
 
 ## Fase 2 · `storage/`
 
