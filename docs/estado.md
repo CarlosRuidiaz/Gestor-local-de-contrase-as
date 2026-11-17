@@ -20,7 +20,7 @@ La suite tiene 410 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 1 | `crypto/`: KEK con Argon2id, AEAD, aleatoriedad, borrado. T10 | Terminada | Carlos Ruidiaz | fusionada |
 | 2 | `storage/`: formato v1, comprobaciones 1 y 2, guardado atómico, lock. T4 (formato), T5 (sin claves), T7 | Terminada | Claudia Elias | fusionada |
 | 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
-| 4 | CLI mínimo con `getpass` | **Siguiente** | sin asignar | sin empezar |
+| 4 | CLI mínimo con `getpass` | **En curso** | Juan Bolivar | `feat/cli` |
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Pendiente | sin asignar | |
 | 6 | Experimentos E1, E2, E3 y gráficas | Pendiente | sin asignar | |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
