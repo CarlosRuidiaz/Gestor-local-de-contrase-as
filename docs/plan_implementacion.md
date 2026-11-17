@@ -60,8 +60,10 @@ Estado al 2026-11-16: capa completa, 410 pruebas en verde dentro del contenedor 
 
 ## Fase 4 · CLI mínimo
 
-- [ ] `python -m pvlt.cli create|unlock|add|list|change-password|export|import` usando `getpass`.
-- [ ] Sirve para la demo de respaldo y para los experimentos. No necesita ser bonito.
+- [x] `python -m pvlt.cli create|unlock|add|list|change-password|export|import` usando `getpass`. También `get` y `generate`.
+- [x] Sirve para la demo de respaldo y para los experimentos. No necesita ser bonito.
+
+Estado al 2026-11-16: CLI completo, 468 pruebas en verde dentro del contenedor (58 del CLI) y `mypy` estricto sin errores. Las órdenes, la ruta por defecto y los códigos de salida están en `estado.md`.
 
 ## Fase 5 · `web/`
 

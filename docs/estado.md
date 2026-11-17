@@ -4,13 +4,13 @@ Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pu
 
 **Antes de hacer cualquier commit** hay que leer la sección "Reglas de autoría y de lo que se sube" de la guía. Indica quién firma cada fase, qué no puede subirse nunca y cómo se sube.
 
-Última actualización: 2026-11-16, Carlos Ruidiaz (reglas de autoría).
+Última actualización: 2026-11-16, Juan Bolivar (Fase 4, CLI).
 
 ## Resumen
 
-Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/` y `vault/` están terminadas y probadas: toda la lógica del producto existe y se puede usar desde Python. Falta ponerle interfaz (CLI y web), los experimentos y el cierre (README, guion de demostración e informe).
+Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/` y `vault/` están terminadas y probadas, y el CLI mínimo (`pvlt/cli.py`) ya permite usar la bóveda desde la terminal. Falta la interfaz web, los experimentos y el cierre (README, guion de demostración e informe).
 
-La suite tiene 410 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre T1 a T8, T10 y T11. Faltan T9, T12 y T13, que dependen de la interfaz web.
+La suite tiene 468 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre T1 a T8, T10 y T11. Faltan T9, T12 y T13, que dependen de la interfaz web.
 
 ## Fases
 
@@ -20,26 +20,34 @@ La suite tiene 410 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 1 | `crypto/`: KEK con Argon2id, AEAD, aleatoriedad, borrado. T10 | Terminada | Carlos Ruidiaz | fusionada |
 | 2 | `storage/`: formato v1, comprobaciones 1 y 2, guardado atómico, lock. T4 (formato), T5 (sin claves), T7 | Terminada | Claudia Elias | fusionada |
 | 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
-| 4 | CLI mínimo con `getpass` | **Siguiente** | sin asignar | sin empezar |
-| 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Pendiente | sin asignar | |
-| 6 | Experimentos E1, E2, E3 y gráficas | Pendiente | sin asignar | |
+| 4 | CLI mínimo con `getpass` | Terminada | Juan Bolivar | `feat/cli` |
+| 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | **Siguiente** | sin asignar | |
+| 6 | Experimentos E1, E2, E3 y gráficas | **Siguiente** | sin asignar | |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
 
-Las fases 4 a 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
+Las fases 5 a 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
 
 El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](plan_implementacion.md). Las fases 5 y 6 pueden avanzar en paralelo una vez exista la 4.
 
 ## Siguiente paso
 
-**Fase 4, `pvlt/cli.py`**, en una rama `feat/cli`. Es corta y desbloquea las fases 5 y 6, que después pueden avanzar en paralelo.
+Con el CLI terminado, la **Fase 5** (`web/`, rama `feat/web`) y la **Fase 6** (experimentos, rama `feat/bench`) pueden avanzar en paralelo. Las dos usan exactamente la API de `pvlt.vault` descrita abajo. La Fase 6 puede medir con el CLI o directamente contra `Vault`, y para E1 contra `derive_kek`.
 
-1. Subcomandos `create`, `unlock` (abre y lista), `add`, `list`, `get`, `change-password`, `export`, `import` y `generate`, con `argparse`.
-2. Toda contraseña se pide con `getpass`. Nunca por argumento ni variable de entorno (regla 3). La ruta de la bóveda sí puede ir por argumento o por `PVLT_VAULT_DIR`.
-3. Al arrancar, abrir un `Workspace` (toma el lock y hace la recuperación). Si `report.can_restore_backup`, ofrecer restaurar. Si `report.possible_rollback`, advertir.
-4. Traducir cada excepción a su mensaje y a un código de salida distinto de cero, sin trazas.
-5. Pruebas del CLI con `getpass` sustituido, incluido que la contraseña no aparece en `sys.argv` ni en la salida.
+### Cómo se usa el CLI
 
-La **Fase 5** (`web/`) usa exactamente la misma API. La **Fase 6** puede empezar en cuanto exista el CLI o directamente contra `Vault`.
+```
+docker compose run --rm app python -m pvlt.cli create --config A
+docker compose run --rm app python -m pvlt.cli add --generate
+docker compose run --rm app python -m pvlt.cli unlock
+docker compose run --rm app python -m pvlt.cli --help
+```
+
+- Órdenes: `create [--config A|B|C]`, `unlock`, `list [--search]`, `get ID [--show]`, `add [--generate --length N --no-symbols ...]`, `change-password`, `export DESTINO [--overwrite]`, `import ORIGEN [--on-conflict ask|skip|replace|keep-both]` y `generate`.
+- La ruta es `--vault RUTA`. Sin ella se usa `$PVLT_VAULT_DIR/boveda.pvlt` (en el contenedor, `/data`) y, si la variable no existe, `./boveda.pvlt`.
+- Contraseñas con `getpass`. Sitio, usuario, notas y texto de búsqueda se piden por teclado con `input`, nunca como argumento.
+- Al arrancar informa de los temporales eliminados y del posible retroceso, y ofrece restaurar el respaldo si la bóveda no se puede leer y el `.bak` sí. Solo restaura con una respuesta afirmativa explícita.
+- Para la demo del respaldo basta con dañar un byte de `boveda.pvlt` y ejecutar `unlock`.
+- Códigos de salida, definidos en `pvlt/cli.py`: 0 correcto, 2 uso incorrecto, 3 formato no reconocido, 4 archivo dañado, 5 contraseña incorrecta, 6 contenido manipulado, 7 sesión bloqueada, 8 dato inválido, 9 entrada inexistente, 10 el archivo ya existe, 11 bóveda abierta en otro proceso, 12 no hay bóveda o archivo a importar, 13 las contraseñas no coinciden, 14 error de lectura o escritura, 130 cancelado, 1 error inesperado (solo se muestra la clase).
 
 ### Qué ofrece ya el código
 
@@ -106,6 +114,11 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-16 | En la importación, un conflicto sin decisión se omite | Es la única opción que no destruye ni duplica nada |
 | 2026-11-16 | T11 comprueba la uniformidad dentro de cada clase, y sobre todo el alfabeto solo con longitud 128 | El muestreo por rechazo desplaza algo de peso entre clases en contraseñas cortas. Dentro de una clase la uniformidad es exacta |
 | 2026-11-16 | T6 hace los 10 000 guardados en memoria y otros 200 por disco | La propiedad está en el sellado. Hacer 10 000 guardados con `fsync` tardaría minutos |
+| 2026-11-16 | El CLI pide sitio, usuario, notas y búsqueda por teclado, no como argumentos | La regla 2 prohíbe esos datos en los argumentos del proceso, no solo las contraseñas |
+| 2026-11-16 | El CLI comprueba el estado de la bóveda antes de pedir la contraseña | Si falta o falla las comprobaciones 1 o 2, falla sin ejecutar Argon2id |
+| 2026-11-16 | `create` y `export` se niegan a sobrescribir antes de pedir la contraseña, y las contraseñas nuevas se piden dos veces con la longitud validada antes de derivar | No se gasta un Argon2id en una operación que va a fallar |
+| 2026-11-16 | El CLI importa de `pvlt.storage` solo `FormatError`, `CorruptedFileError`, `VaultLockedError` y `FileStatus` | Las tres excepciones nacen en esa capa y la interfaz debe traducirlas. No hace falta reexportarlas desde `vault/` |
+| 2026-11-16 | `pvlt.cli` también pasa `mypy` en modo estricto | Es una interfaz que maneja contraseñas |
 | 2026-11-16 | Dos pruebas llevan la marca `slow` (T1 con 500 entradas y T6 por disco) | Suman unos 40 s. Se ejecutan por defecto y se pueden excluir con `-m "not slow"` |
 
 ## Pendientes y advertencias
@@ -123,6 +136,15 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-16 · Juan Bolivar · `feat/cli`
+
+- Fase 4 completa: `pvlt/cli.py` con las órdenes `create`, `unlock`, `list`, `get`, `add`, `change-password`, `export`, `import` y `generate`. Se ejecuta con `python -m pvlt.cli` o con el script `pvlt`.
+- Arranque con `Workspace`: avisos de temporales y de posible retroceso, y restauración del respaldo solo con confirmación.
+- Cada excepción se traduce a su mensaje en español y a un código de salida propio, sin trazas. Un error desconocido muestra solo el nombre de la clase.
+- 58 pruebas nuevas en `tests/test_cli.py`, con `getpass` e `input` sustituidos. Comprueban que ningún secreto ni dato de entrada aparece en los argumentos ni en la salida, salvo la contraseña de `get --show`.
+- Fuera del CLI solo cambia `pyproject.toml`, que añade `pvlt.cli` al modo estricto de `mypy`.
+- Sigue: Fases 5 y 6, en paralelo.
 
 ### 2026-11-16 · Carlos Ruidiaz · `docs/reglas-autoria`
 
