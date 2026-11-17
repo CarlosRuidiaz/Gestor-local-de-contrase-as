@@ -31,9 +31,9 @@ files = ["pvlt"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
-# Modo estricto en las capas que tocan claves, formato y disco.
+# Modo estricto en las capas que tocan claves, formato y disco, y en el CLI.
 [[tool.mypy.overrides]]
-module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*"]
+module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli"]
 strict = true
 
 [tool.ruff]
