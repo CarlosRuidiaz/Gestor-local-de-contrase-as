@@ -16,6 +16,9 @@ pvlt = "pvlt.cli:main"
 [tool.setuptools.packages.find]
 include = ["pvlt*"]
 
+[tool.setuptools.package-data]
+"pvlt.web" = ["static/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -31,9 +34,9 @@ files = ["pvlt"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
-# Modo estricto en las capas que tocan claves, formato y disco, y en el CLI.
+# Modo estricto en las capas que tocan claves, formato y disco, y en las dos interfaces.
 [[tool.mypy.overrides]]
-module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli"]
+module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli", "pvlt.web.*"]
 strict = true
 
 [tool.ruff]
