@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import socket
 import sys
 import webbrowser
@@ -59,6 +60,10 @@ def bind(host: str, port: int) -> socket.socket:
     return sock
 
 
+def _interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m pvlt.web",
@@ -86,7 +91,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     path: Path = args.vault if args.vault is not None else default_vault_path()
     docker = in_docker()
-    host = "0.0.0.0" if docker else "127.0.0.1"  # noqa: S104  (inside the container only)
+    host = "0.0.0.0" if docker else "127.0.0.1"  # noqa: S104 - inside the container only
     port: int = args.port if args.port is not None else (DOCKER_PORT if docker else 0)
 
     try:
@@ -122,8 +127,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             server_header=False,
             date_header=False,
         )
+        # uvicorn shuts down gracefully on SIGINT or SIGTERM (the lifespan locks the
+        # vault) and then raises the signal again. SIGTERM is turned into the same
+        # KeyboardInterrupt as Ctrl+C so both end here, without a traceback.
+        signal.signal(signal.SIGTERM, _interrupt)
         try:
             uvicorn.Server(config).run(sockets=[sock])
+        except KeyboardInterrupt:
+            pass
         finally:
             sock.close()
     print("pvlt cerrado. La bóveda quedó bloqueada.", flush=True)
