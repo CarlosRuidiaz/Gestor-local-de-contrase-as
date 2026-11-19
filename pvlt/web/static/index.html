@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>pvlt</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>pvlt</h1>
+    <span id="vault-name" class="muted"></span>
+    <span id="autolock" class="muted"></span>
+    <button id="lock-button" type="button" class="secondary" hidden>Bloquear</button>
+  </header>
+
+  <main id="app">
+    <p id="notice" class="notice" role="status" hidden></p>
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section id="view-boot">
+      <p>Conectando con pvlt…</p>
+    </section>
+
+    <section id="view-no-session" hidden>
+      <h2>Sesión no disponible</h2>
+      <p id="no-session-reason"></p>
+      <p>Abre la URL que mostró pvlt en la terminal al arrancar. Cada enlace sirve una sola vez.
+        Si ya lo usaste en otra pestaña, sigue allí o reinicia pvlt.</p>
+    </section>
+
+    <section id="recovery" class="card warning" hidden>
+      <p id="rollback-warning" hidden></p>
+      <p id="damaged-warning" hidden></p>
+      <p id="temporaries-warning" hidden></p>
+      <button id="restore-button" type="button" hidden>Restaurar el respaldo</button>
+    </section>
+
+    <section id="view-create" class="card narrow" hidden>
+      <h2>Crear bóveda</h2>
+      <p class="hint">Recomendación: no permitas que el navegador guarde la contraseña maestra.
+        pvlt no puede recuperarla si la olvidas.</p>
+      <form id="create-form" method="post" action="/">
+        <label>Contraseña maestra (8 a 1024 caracteres)
+          <input id="create-password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+        </label>
+        <label>Repite la contraseña maestra
+          <input id="create-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+        </label>
+        <label>Configuración de Argon2id
+          <select id="create-config">
+            <option value="A">A · 64 MiB, 3 pasadas</option>
+            <option value="B" selected>B · 256 MiB, 3 pasadas (recomendada)</option>
+            <option value="C">C · 2 GiB, 1 pasada</option>
+          </select>
+        </label>
+        <button type="submit">Crear</button>
+      </form>
+    </section>
+
+    <section id="view-unlock" class="card narrow" hidden>
+      <h2>Desbloquear</h2>
+      <p class="hint">Recomendación: no permitas que el navegador guarde la contraseña maestra.</p>
+      <form id="unlock-form" method="post" action="/">
+        <label>Contraseña maestra
+          <input id="unlock-password" type="password" autocomplete="new-password" required>
+        </label>
+        <button type="submit">Desbloquear</button>
+      </form>
+    </section>
+
+    <section id="view-main" hidden>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Buscar por sitio o usuario" autocomplete="off" aria-label="Buscar">
+        <button id="new-entry-button" type="button">Nueva entrada</button>
+        <button id="generator-button" type="button" class="secondary">Generador</button>
+        <button id="change-button" type="button" class="secondary">Contraseña maestra</button>
+        <button id="export-button" type="button" class="secondary">Exportar</button>
+        <button id="import-button" type="button" class="secondary">Importar</button>
+        <button id="settings-button" type="button" class="secondary">Ajustes</button>
+      </div>
+
+      <div class="layout">
+        <div class="list">
+          <table id="entries">
+            <thead>
+              <tr><th>Sitio</th><th>Usuario</th><th>Modificada</th><th></th></tr>
+            </thead>
+            <tbody id="entries-body"></tbody>
+          </table>
+          <p id="entries-empty" class="muted" hidden>Sin entradas.</p>
+          <p id="entries-count" class="muted"></p>
+        </div>
+
+        <aside id="panel" class="card">
+          <section id="panel-detail" hidden>
+            <h2 id="detail-site"></h2>
+            <dl>
+              <dt>Usuario</dt><dd id="detail-username"></dd>
+              <dt>Contraseña</dt>
+              <dd><span id="detail-password" class="secret">••••••••</span></dd>
+              <dt>Notas</dt><dd id="detail-notes" class="notes"></dd>
+              <dt>Creada</dt><dd id="detail-created"></dd>
+              <dt>Modificada</dt><dd id="detail-modified"></dd>
+            </dl>
+            <div class="actions">
+              <button id="detail-show" type="button" class="secondary">Ver</button>
+              <button id="detail-copy" type="button">Copiar</button>
+              <button id="detail-edit" type="button" class="secondary">Editar</button>
+              <button id="detail-delete" type="button" class="danger">Eliminar</button>
+            </div>
+          </section>
+
+          <section id="panel-entry" hidden>
+            <h2 id="entry-title">Nueva entrada</h2>
+            <form id="entry-form" method="post" action="/">
+              <label>Sitio
+                <input id="entry-site" type="text" autocomplete="off" required maxlength="256">
+              </label>
+              <label>Usuario
+                <input id="entry-username" type="text" autocomplete="off" maxlength="256">
+              </label>
+              <label>Contraseña
+                <span class="row">
+                  <input id="entry-password" type="password" autocomplete="new-password" maxlength="1024">
+                  <button id="entry-toggle" type="button" class="secondary">Mostrar</button>
+                  <button id="entry-generate" type="button" class="secondary">Generar</button>
+                </span>
+              </label>
+              <p id="entry-password-hint" class="hint" hidden>Déjala vacía para conservar la actual.</p>
+              <label>Notas
+                <textarea id="entry-notes" rows="4" maxlength="8192"></textarea>
+              </label>
+              <div class="actions">
+                <button type="submit">Guardar</button>
+                <button id="entry-cancel" type="button" class="secondary">Cancelar</button>
+              </div>
+            </form>
+          </section>
+
+          <section id="panel-generator" hidden>
+            <h2>Generador</h2>
+            <form id="generator-form" method="post" action="/">
+              <label>Longitud (8 a 128)
+                <input id="gen-length" type="number" min="8" max="128" value="20">
+              </label>
+              <label class="check"><input id="gen-lower" type="checkbox" checked> Minúsculas</label>
+              <label class="check"><input id="gen-upper" type="checkbox" checked> Mayúsculas</label>
+              <label class="check"><input id="gen-digits" type="checkbox" checked> Dígitos</label>
+              <label class="check"><input id="gen-symbols" type="checkbox" checked> Símbolos</label>
+              <div class="actions">
+                <button type="submit">Generar</button>
+                <button id="gen-save" type="button" class="secondary">Guardar como predeterminado</button>
+              </div>
+            </form>
+            <p><code id="gen-output" class="secret"></code></p>
+            <p id="gen-entropy" class="muted"></p>
+            <button id="gen-copy" type="button" hidden>Copiar</button>
+          </section>
+
+          <section id="panel-change" hidden>
+            <h2>Cambiar la contraseña maestra</h2>
+            <form id="change-form" method="post" action="/">
+              <label>Contraseña actual
+                <input id="change-current" type="password" autocomplete="new-password" required>
+              </label>
+              <label>Contraseña nueva (8 a 1024 caracteres)
+                <input id="change-new" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+              </label>
+              <label>Repite la contraseña nueva
+                <input id="change-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+              </label>
+              <button type="submit">Cambiar</button>
+            </form>
+          </section>
+
+          <section id="panel-export" hidden>
+            <h2>Exportar</h2>
+            <p class="hint">El archivo queda cifrado con su propia contraseña, en la carpeta de la bóveda.</p>
+            <form id="export-form" method="post" action="/">
+              <label>Nombre del archivo (termina en .pvlt)
+                <input id="export-filename" type="text" autocomplete="off" required value="exportacion.pvlt">
+              </label>
+              <label>Contraseña de exportación (8 a 1024 caracteres)
+                <input id="export-password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+              </label>
+              <label>Repite la contraseña de exportación
+                <input id="export-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">
+              </label>
+              <label class="check"><input id="export-overwrite" type="checkbox"> Sobrescribir si ya existe</label>
+              <button type="submit">Exportar</button>
+            </form>
+          </section>
+
+          <section id="panel-import" hidden>
+            <h2>Importar</h2>
+            <form id="import-form" method="post" action="/">
+              <label>Archivo de la carpeta de la bóveda
+                <select id="import-file" required></select>
+              </label>
+              <label>Contraseña de exportación
+                <input id="import-password" type="password" autocomplete="new-password" required>
+              </label>
+              <button type="submit">Vista previa</button>
+            </form>
+            <div id="import-preview" hidden>
+              <p id="import-summary"></p>
+              <table>
+                <thead><tr><th>Sitio</th><th>Usuario</th><th>Conflicto</th><th>Decisión</th></tr></thead>
+                <tbody id="import-items"></tbody>
+              </table>
+              <div class="actions">
+                <button id="import-apply" type="button">Aplicar</button>
+                <button id="import-cancel" type="button" class="secondary">Cancelar</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="panel-settings" hidden>
+            <h2>Ajustes</h2>
+            <form id="settings-form" method="post" action="/">
+              <label>Bloqueo por inactividad, en segundos (30 a 3600)
+                <input id="settings-autolock" type="number" min="30" max="3600" required>
+              </label>
+              <button type="submit">Guardar</button>
+            </form>
+          </section>
+
+          <p id="panel-empty" class="muted">Elige una entrada o una acción.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

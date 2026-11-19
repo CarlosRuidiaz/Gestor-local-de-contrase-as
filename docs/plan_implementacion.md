@@ -67,12 +67,18 @@ Estado al 2026-11-16: CLI completo, 468 pruebas en verde dentro del contenedor (
 
 ## Fase 5 · `web/`
 
-- [ ] App FastAPI con arranque (token, puerto, abrir navegador o imprimir URL).
-- [ ] Middleware de seguridad: Host, Origin, CSRF, cabeceras CSP y no-store.
-- [ ] Endpoints: estado, crear, desbloquear, bloquear, listar (sin contraseñas), obtener contraseña de una entrada, crear, editar, eliminar, generar, cambiar contraseña, exportar, importar con vista previa.
-- [ ] Frontend en HTML, CSS y JS propios, sin CDN. Solo `textContent` para datos de usuario.
-- [ ] Portapapeles con borrado a los 20 s. Aviso sobre el guardado de contraseñas del navegador.
-- [ ] T9 (logs y URL), T12, T13 con Playwright.
+- [x] App FastAPI con arranque (token, puerto, abrir navegador o imprimir URL).
+- [x] Middleware de seguridad: Host, Origin, CSRF, cabeceras CSP y no-store.
+- [x] Endpoints: estado, crear, desbloquear, bloquear, listar (sin contraseñas), obtener contraseña de una entrada, crear, editar, eliminar, generar, cambiar contraseña, exportar, importar con vista previa.
+- [x] Frontend en HTML, CSS y JS propios, sin CDN. Solo `textContent` para datos de usuario.
+- [x] Portapapeles con borrado a los 20 s. Aviso sobre el guardado de contraseñas del navegador.
+- [x] T9 (logs y URL), T12, T13 con Playwright.
+
+Estado al 2026-11-19: capa completa, 654 pruebas en verde dentro del contenedor (186 de `web/`) y `mypy` estricto sin errores, también en `pvlt.web`. Con esto quedan cubiertas T1 a T13. Las concreciones de la capa están en `diseno.md` §8 y el uso en `estado.md`.
+
+- `security.py` decide quién puede hablar con el servidor antes de que corra ninguna ruta. `app.py` solo traduce la API de `pvlt.vault` a JSON. `server.py` toma el lock, abre el puerto, imprime la URL y arranca uvicorn sin log de acceso.
+- T9 arranca `python -m pvlt.web` como subproceso real y busca cada dato sintético en su salida, en `/proc/<pid>/cmdline` y `environ`, en los archivos de la carpeta y en las URL pedidas, también desde el navegador.
+- T12 y T13 usan Chromium sin interfaz. T12 adelanta el reloj de la página en lugar de esperar 20 s reales.
 
 ## Fase 6 · Experimentos
 

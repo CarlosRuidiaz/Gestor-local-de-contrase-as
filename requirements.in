@@ -9,6 +9,7 @@ uvicorn
 # Pruebas y calidad
 pytest
 httpx      # cliente de pruebas de FastAPI
+playwright # pruebas de navegador (T12, T13). Chromium se instala en la imagen
 mypy
 ruff
 pip-tools

@@ -1,0 +1,156 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c2430;
+  --muted: #5f6b7a;
+  --border: #d7dce3;
+  --accent: #2f5d8a;
+  --accent-text: #ffffff;
+  --danger: #a33a3a;
+  --warn-bg: #fff6e0;
+  --warn-border: #e8c46a;
+  --error-bg: #fdecec;
+  --notice-bg: #e8f3ec;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181e;
+    --surface: #1c222a;
+    --text: #e4e8ee;
+    --muted: #9aa5b3;
+    --border: #323b47;
+    --accent: #6b9fd1;
+    --accent-text: #0e1620;
+    --danger: #e07a7a;
+    --warn-bg: #3a3220;
+    --warn-border: #8a7238;
+    --error-bg: #3d2224;
+    --notice-bg: #1f3427;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 { font-size: 1.2rem; margin: 0; }
+.topbar #lock-button { margin-left: auto; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+h2 { font-size: 1.1rem; margin: 0 0 0.75rem; overflow-wrap: anywhere; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.narrow { max-width: 28rem; margin: 2rem auto; }
+
+.warning { background: var(--warn-bg); border-color: var(--warn-border); margin-bottom: 1rem; }
+.warning p { margin: 0 0 0.5rem; }
+
+.notice, .error {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  margin: 0 0 1rem;
+}
+.notice { background: var(--notice-bg); }
+.error { background: var(--error-bg); }
+
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-size: 0.9rem; }
+
+label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+label.check { font-weight: 400; display: flex; align-items: center; gap: 0.4rem; }
+
+input[type="text"], input[type="password"], input[type="number"], input[type="search"],
+select, textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.row { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.25rem; }
+.row input { margin-top: 0; flex: 1; min-width: 0; }
+
+button {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+button.secondary { background: transparent; color: var(--accent); }
+button.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.toolbar input[type="search"] { flex: 1 1 16rem; width: auto; margin-top: 0; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+td.row-actions { white-space: nowrap; text-align: right; }
+td.row-actions button { padding: 0.25rem 0.6rem; margin-left: 0.25rem; }
+
+dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 0.8rem; margin: 0; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.notes { white-space: pre-wrap; }
+.secret { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; overflow-wrap: anywhere; }

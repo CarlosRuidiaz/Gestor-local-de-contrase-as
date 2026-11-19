@@ -4,13 +4,13 @@ Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pu
 
 **Antes de hacer cualquier commit** hay que leer la sección "Reglas de autoría y de lo que se sube" de la guía. Indica quién firma cada fase, qué no puede subirse nunca y cómo se sube.
 
-Última actualización: 2026-11-16, Juan Bolivar (Fase 4, CLI).
+Última actualización: 2026-11-19, Claudia Elias (Fase 5, web).
 
 ## Resumen
 
-Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/` y `vault/` están terminadas y probadas, y el CLI mínimo (`pvlt/cli.py`) ya permite usar la bóveda desde la terminal. Falta la interfaz web, los experimentos y el cierre (README, guion de demostración e informe).
+Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/`, `vault/` y `web/` están terminadas y probadas. La bóveda se usa desde la interfaz web local (`python -m pvlt.web`) o desde el CLI mínimo (`python -m pvlt.cli`). Faltan los experimentos y el cierre (README, guion de demostración e informe).
 
-La suite tiene 468 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre T1 a T8, T10 y T11. Faltan T9, T12 y T13, que dependen de la interfaz web.
+La suite tiene 654 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre todas las pruebas del diseño, de T1 a T13.
 
 ## Fases
 
@@ -21,17 +21,32 @@ La suite tiene 468 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 2 | `storage/`: formato v1, comprobaciones 1 y 2, guardado atómico, lock. T4 (formato), T5 (sin claves), T7 | Terminada | Claudia Elias | fusionada |
 | 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
 | 4 | CLI mínimo con `getpass` | Terminada | Juan Bolivar | `feat/cli` |
-| 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | **Siguiente** | sin asignar | |
+| 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Terminada | Claudia Elias | `feat/web` |
 | 6 | Experimentos E1, E2, E3 y gráficas | **Siguiente** | sin asignar | |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
 
-Las fases 5 a 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
+Las fases 6 y 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
 
 El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](plan_implementacion.md). Las fases 5 y 6 pueden avanzar en paralelo una vez exista la 4.
 
 ## Siguiente paso
 
-Con el CLI terminado, la **Fase 5** (`web/`, rama `feat/web`) y la **Fase 6** (experimentos, rama `feat/bench`) pueden avanzar en paralelo. Las dos usan exactamente la API de `pvlt.vault` descrita abajo. La Fase 6 puede medir con el CLI o directamente contra `Vault`, y para E1 contra `derive_kek`.
+Con la interfaz web terminada sigue la **Fase 6** (experimentos, rama `feat/bench`). Usa la API de `pvlt.vault` descrita abajo y puede medir con el CLI o directamente contra `Vault`, y para E1 contra `derive_kek`. Después queda la **Fase 7** (cierre), que ya puede preparar el guion de demostración sobre la interfaz web.
+
+### Cómo se usa la interfaz web
+
+```
+docker compose build
+docker compose run --rm --service-ports app            # o: docker compose up
+docker compose run --rm --service-ports app python -m pvlt.web --vault /data/otra.pvlt
+```
+
+- `docker compose run` no publica el puerto si no se le pasa `--service-ports`. `docker compose up` sí lo publica, porque la imagen arranca `python -m pvlt.web` por defecto.
+- Se abre la URL `http://127.0.0.1:8765/#t=...` que se imprime en la terminal. Sirve una sola vez. Recargar la página conserva la sesión, pero otra pestaña o navegador necesita reiniciar pvlt. Ctrl+C cierra el servidor y bloquea la bóveda.
+- Fuera de Docker, `python -m pvlt.web [--vault RUTA] [--port N] [--no-browser]` escucha en `127.0.0.1` con un puerto aleatorio y abre el navegador.
+- Exportar e importar trabajan con archivos `.pvlt` de la carpeta de la bóveda (en el contenedor, el volumen `/data`). Para sacarlos del volumen: `docker compose cp`, o montar una carpeta del anfitrión.
+- La API vive en `pvlt/web/app.py`. Todas las rutas `/api/` salvo el canje del token exigen la cookie y la cabecera `X-CSRF-Token`. Los códigos HTTP son 401 sin sesión, 403 por Host, Origin o CSRF, 400 contraseña incorrecta, 404 sin bóveda o entrada inexistente, 409 el archivo ya existe, 422 dato inválido, formato no reconocido, archivo dañado o contenido manipulado (el campo `error` los distingue) y 423 sesión bloqueada.
+- Para la demo del respaldo: dañar un byte de la bóveda con el servidor parado y arrancarlo. La página ofrece restaurar el `.bak` y pide confirmación.
 
 ### Cómo se usa el CLI
 
@@ -120,6 +135,14 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-16 | El CLI importa de `pvlt.storage` solo `FormatError`, `CorruptedFileError`, `VaultLockedError` y `FileStatus` | Las tres excepciones nacen en esa capa y la interfaz debe traducirlas. No hace falta reexportarlas desde `vault/` |
 | 2026-11-16 | `pvlt.cli` también pasa `mypy` en modo estricto | Es una interfaz que maneja contraseñas |
 | 2026-11-16 | Dos pruebas llevan la marca `slow` (T1 con 500 entradas y T6 por disco) | Suman unos 40 s. Se ejecutan por defecto y se pueden excluir con `-m "not slow"` |
+| 2026-11-19 | `playwright` 1.65.2 entra en `requirements.txt` y Chromium sin interfaz (`--only-shell`) se instala en la imagen de referencia | T12 y T13 corren con los mismos comandos que el resto de la suite. La imagen pasa a ocupar unos 1,5 GB |
+| 2026-11-19 | Exportar e importar desde la web usan un nombre de archivo en la carpeta de la bóveda, no subida ni descarga | Reutiliza `Vault.export` e `import_preview` sin tocar `vault/` ni añadir dependencias, y no crea temporales fuera del guardado atómico |
+| 2026-11-19 | El CSRF se exige en todas las rutas `/api/` salvo el canje, incluidas las de lectura | Las lecturas devuelven sitios, usuarios y contraseñas. Es más simple y más estricto que distinguir por método |
+| 2026-11-19 | El token CSRF vive en `sessionStorage` y no hay ruta que lo reentregue a partir de la cookie | Las cookies no distinguen puertos. Un servidor ajeno en otro puerto local podría recibir la cookie, pero no el token CSRF |
+| 2026-11-19 | Un hilo borra la KEK al vencer la inactividad aunque no lleguen peticiones | La comprobación de `Vault` es perezosa. Sin el hilo, la KEK seguiría en memoria hasta la siguiente petición |
+| 2026-11-19 | `pvlt.web` importa de `pvlt.storage` solo `FormatError`, `CorruptedFileError`, `VaultLockedError`, `FileStatus` y `RecoveryReport` | El mismo criterio que el CLI. Son excepciones y estados que nacen en esa capa y la interfaz debe traducirlos |
+| 2026-11-19 | `pvlt.web` también pasa `mypy` en modo estricto | Igual que el CLI, es una interfaz que maneja contraseñas |
+| 2026-11-19 | Las pruebas de navegador llevan la marca `browser` | Se ejecutan por defecto. Si `playwright` o Chromium no están instalados se omiten solas, y `-m "not browser"` las excluye |
 
 ## Pendientes y advertencias
 
@@ -132,10 +155,23 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 - **Las pruebas también pasan en Windows** con Python 3.14, salvo dos de permisos POSIX que se omiten solas. Sirve para iterar rápido, pero la referencia sigue siendo el contenedor.
 - **Ventana en el cambio de contraseña:** entre el guardado y la reescritura del respaldo, el `.bak` todavía abre con la contraseña anterior. Está documentado en `diseno.md` §4.9. Conviene mencionarlo en el informe como limitación.
 - **Timeouts de PyPI** al regenerar `requirements.txt`. Usar `PIP_DEFAULT_TIMEOUT=120` como indica la guía.
+- **Rutas en Git Bash.** Al pasar rutas del contenedor (`/tmp/...`, `/app`) a `docker run` desde Git Bash, este las convierte en rutas de Windows. Hay que anteponer `MSYS_NO_PATHCONV=1` o usar PowerShell.
+- **El comando `pvlt` abre el CLI, no la web.** El Entregable 1 dice que "el comando pvlt inicia un servidor y abre el navegador", pero desde la Fase 4 el script `pvlt` apunta a `pvlt.cli`. La web se arranca con `python -m pvlt.web`, que es también lo que ejecuta la imagen por defecto. La Fase 7 debe decidir si se cambia el script o se explica en el informe.
+- **Token en los argumentos del navegador (limitación).** Fuera de Docker, mientras el sistema lanza el navegador, la URL con el token aparece en los argumentos de ese proceso. Se mitiga porque el token sirve una sola vez. Conviene mencionarlo en el informe junto a A4.
+- **Aviso de Starlette en las pruebas.** `TestClient` emite `StarletteDeprecationWarning` porque recomienda `httpx2`. No afecta a nada y se deja hasta que haya que actualizar dependencias.
 
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-19 · Claudia Elias · `feat/web`
+
+- Fase 5 completa: `pvlt/web/security.py`, `errors.py`, `schemas.py`, `app.py`, `server.py` y `__main__.py`, y el frontend en `pvlt/web/static/` (HTML, CSS y JS propios, sin nada en línea).
+- Seguridad HTTP según `diseno.md` §8: token de arranque de un solo uso en el fragmento, cookie `HttpOnly` y `SameSite=Strict`, CSRF, Host y Origin, CSP con `frame-ancestors 'none'`, `no-store` y log de acceso desactivado. Las concreciones quedan anotadas en §8.
+- La API cubre estado, crear, desbloquear, bloquear, restaurar el respaldo, entradas, contraseña de una entrada, generador, ajustes, cambio de contraseña, exportación e importación con vista previa.
+- 186 pruebas nuevas en `tests/web/`. T13 por HTTP sobre cada ruta, T9 con el servidor real como subproceso y T12 y T13 en Chromium con Playwright.
+- Fuera de `web/` cambian `requirements.in` y `requirements.txt` (`playwright`), el `Dockerfile` (Chromium sin interfaz) y `pyproject.toml` (estáticos como datos del paquete y `mypy` estricto en `pvlt.web`).
+- Sigue: Fase 6 (experimentos) y después la Fase 7.
 
 ### 2026-11-16 · Juan Bolivar · `feat/cli`
 
