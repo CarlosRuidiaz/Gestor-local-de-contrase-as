@@ -241,6 +241,20 @@ Puntos de inyección de fallos: cada paso debe poder interrumpirse en pruebas (T
 - Fuera de Docker: escucha en `127.0.0.1` con puerto aleatorio y abre el navegador.
 - En Docker: escucha en `0.0.0.0:8765` dentro del contenedor y se publica con `-p 127.0.0.1:8765:8765`. La URL con el token se imprime en la terminal. En ese caso `Host` aceptado es `127.0.0.1:8765` y `localhost:8765`.
 
+Concreciones de la capa web **(concreción)**:
+
+- El token de arranque, la cookie de sesión y el token CSRF son de 256 bits (`secrets.token_urlsafe(32)`) y se comparan con `hmac.compare_digest`. El canje es `POST /api/session` con el token en el cuerpo. Tras el primer canje correcto el token de arranque se olvida. Un token incorrecto no lo consume.
+- La cookie es `pvlt_session`, `HttpOnly`, `SameSite=Strict`, `Path=/` y de sesión (sin caducidad). No lleva `Secure` porque el servidor es HTTP sobre la interfaz local.
+- El token CSRF se exige en **todas** las peticiones a `/api/` salvo el canje, no solo en las que cambian estado, y viaja en la cabecera `X-CSRF-Token`. La página lo guarda en `sessionStorage`, que depende del puerto, para sobrevivir a una recarga. No existe ninguna ruta que lo vuelva a entregar a partir de la cookie, porque las cookies no distinguen puertos y otro servidor local podría recibirla.
+- Orden de las comprobaciones: `Host` (403), `Origin` (403), cookie (401) y CSRF (403). `Origin` ajeno se rechaza siempre, y su ausencia solo se admite en GET, HEAD y OPTIONS.
+- Cabeceras adicionales a las de arriba: `X-Frame-Options: DENY` y `Cross-Origin-Resource-Policy: same-origin`. La documentación automática de FastAPI (`/docs`, `/redoc`, `/openapi.json`) está desactivada.
+- Ningún dato del usuario va en la URL. La búsqueda se hace en la página sobre la lista ya descargada. Los identificadores de entrada, que son UUID aleatorios, son lo único que aparece en una ruta.
+- Las respuestas de error son `{"error", "message", "field"}` con mensajes fijos en español. Se sustituye el manejador de validación de FastAPI, que devolvería los valores enviados, y cualquier excepción se captura antes de llegar al registro de uvicorn. Un error desconocido solo muestra el nombre de su clase.
+- La sesión se bloquea por botón, por inactividad y al cerrar el servidor (Ctrl+C o SIGTERM). Un hilo comprueba la inactividad cada 5 s para borrar la KEK a tiempo aunque no llegue ninguna petición. Consultar el estado no cuenta como actividad. Recargar la página no bloquea la bóveda.
+- Exportar e importar usan un nombre de archivo, no una ruta: letras, dígitos, `.`, `_` y `-`, terminado en `.pvlt`, en la carpeta de la bóveda y distinto de la bóveda. Así no hay que transferir archivos por el navegador ni escribir temporales fuera del procedimiento atómico.
+- Los formularios usan `method="post"` para que un envío anterior a la carga del script nunca ponga una contraseña en la URL. La CSP impide cualquier código o estilo en línea, así que la página no tiene ninguno.
+- Fuera de Docker el servidor abre el navegador con `webbrowser.open(url)`. Mientras el sistema lanza el navegador, la URL con el token puede verse en los argumentos de ese proceso. Como el token solo sirve una vez, si otro proceso lo canjeara antes la página del usuario mostraría que el enlace ya se usó (limitación declarada).
+
 ## 9. Pruebas
 
 | Id | Caso | Resultado esperado |
