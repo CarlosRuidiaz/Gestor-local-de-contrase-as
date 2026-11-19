@@ -9,9 +9,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page, Playwright, expect, sync_playwright
 
 from tests.web.conftest import ENTRY_PASSWORD, MASTER, NOTES, SECRETS, SITE, USER, LiveServer
+
+# Outside the container Playwright may be missing: then this module is skipped.
+pytest.importorskip("playwright.sync_api")
+
+from playwright.sync_api import (
+    Browser,
+    BrowserContext,
+    Page,
+    Playwright,
+    expect,
+    sync_playwright,
+)
 
 pytestmark = pytest.mark.browser
 
