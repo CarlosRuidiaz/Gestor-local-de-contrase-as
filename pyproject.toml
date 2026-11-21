@@ -30,13 +30,14 @@ markers = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["pvlt"]
+files = ["pvlt", "bench"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
-# Modo estricto en las capas que tocan claves, formato y disco, y en las dos interfaces.
+# Modo estricto en las capas que tocan claves, formato y disco, en las dos interfaces
+# y en los experimentos.
 [[tool.mypy.overrides]]
-module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli", "pvlt.web.*"]
+module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli", "pvlt.web.*", "bench.*"]
 strict = true
 
 [tool.ruff]
@@ -51,3 +52,5 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
 # S105 y S106: las contraseñas de las pruebas son sintéticas.
 "tests/**" = ["S101", "S105", "S106"]
 "scripts/**" = ["S101"]
+# Los experimentos usan una contraseña maestra sintética fija.
+"bench/**" = ["S105"]
