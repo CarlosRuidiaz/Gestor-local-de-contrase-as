@@ -122,7 +122,8 @@ def test_t12_a_second_copy_restarts_the_timer(page: Page, live_server: LiveServe
     add_entry(page)
 
     page.click("#detail-copy")
-    expect(page.locator("#notice")).to_be_visible()
+    # Wait for the copy notice itself: "Entrada guardada." may still be visible.
+    expect(page.locator("#notice")).to_contain_text("se vaciará en 20 s")
     page.clock.run_for(15_000)
     expect(page.locator("#notice")).to_be_hidden()  # the notice lasts 8 s
     page.click("#detail-copy")
@@ -130,6 +131,8 @@ def test_t12_a_second_copy_restarts_the_timer(page: Page, live_server: LiveServe
     page.clock.run_for(15_000)
     assert clipboard(page) == ENTRY_PASSWORD
     page.clock.run_for(6000)
+    # Clearing is asynchronous. The notice appears once the clipboard was overwritten.
+    expect(page.locator("#notice")).to_have_text("Portapapeles vaciado.")
     assert clipboard(page) == ""
 
 
