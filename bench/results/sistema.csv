@@ -1,0 +1,13 @@
+clave,valor
+fecha_utc,2026-11-21T14:52:00Z
+cpu,Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz
+nucleos_logicos,8
+nucleos_disponibles,8
+ram_total,3.83 GiB
+limite_memoria_cgroup,sin límite
+so,Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.41
+en_docker,sí
+anfitrion,"Windows 10 Pro 19045, Docker Desktop sobre WSL2"
+python,3.12.16
+cryptography,50.0.2
+openssl,OpenSSL 4.0.3 29 Sep 2026
