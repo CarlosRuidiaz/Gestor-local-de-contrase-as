@@ -22,10 +22,10 @@ La suite tiene 654 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
 | 4 | CLI mínimo con `getpass` | Terminada | Juan Bolivar | `feat/cli` |
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Terminada | Claudia Elias | `feat/web` |
-| 6 | Experimentos E1, E2, E3 y gráficas | **Siguiente** | sin asignar | |
+| 6 | Experimentos E1, E2, E3 y gráficas | **En curso** | Juan Rojas | `feat/bench` |
 | 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
 
-Las fases 6 y 7 están sin asignar. Quien tome una anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
+La fase 7 está sin asignar. Quien la tome anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
 
 El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](plan_implementacion.md). Las fases 5 y 6 pueden avanzar en paralelo una vez exista la 4.
 
