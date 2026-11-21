@@ -120,7 +120,7 @@ def plot_e2(results_dir: Path) -> Path:
         _floats(rows, "descifrar_ms"),
         width,
         bottom=open_bottom,
-        label="Abrir: comprobaciones 3 y 4",
+        label="Abrir: comprobaciones 3 y 4 y JSON",
         color="#f0b88a",
     )
     ax.set_xticks(list(x), labels)
