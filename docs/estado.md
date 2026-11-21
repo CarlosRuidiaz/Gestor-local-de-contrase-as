@@ -4,13 +4,13 @@ Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pu
 
 **Antes de hacer cualquier commit** hay que leer la sección "Reglas de autoría y de lo que se sube" de la guía. Indica quién firma cada fase, qué no puede subirse nunca y cómo se sube.
 
-Última actualización: 2026-11-19, Claudia Elias (Fase 5, web).
+Última actualización: 2026-11-21, Juan Rojas (Fase 6, experimentos).
 
 ## Resumen
 
-Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/`, `vault/` y `web/` están terminadas y probadas. La bóveda se usa desde la interfaz web local (`python -m pvlt.web`) o desde el CLI mínimo (`python -m pvlt.cli`). Faltan los experimentos y el cierre (README, guion de demostración e informe).
+Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/`, `vault/` y `web/` están terminadas y probadas. La bóveda se usa desde la interfaz web local (`python -m pvlt.web`) o desde el CLI mínimo (`python -m pvlt.cli`). Los experimentos E1, E2 y E3 están medidos, con sus CSV y gráficas en `bench/results/`. Falta el cierre (README, guion de demostración e informe).
 
-La suite tiene 654 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre todas las pruebas del diseño, de T1 a T13.
+La suite tiene 665 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre todas las pruebas del diseño, de T1 a T13, y los scripts de los experimentos.
 
 ## Fases
 
@@ -22,8 +22,8 @@ La suite tiene 654 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 3 | `vault/`: entradas, operaciones, sesión, generador. T1, T2, T3, T6, T8, T11 y el resto de T4 y T5 | Terminada | Carlos Ruidiaz | fusionada |
 | 4 | CLI mínimo con `getpass` | Terminada | Juan Bolivar | `feat/cli` |
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Terminada | Claudia Elias | `feat/web` |
-| 6 | Experimentos E1, E2, E3 y gráficas | **En curso** | Juan Rojas | `feat/bench` |
-| 7 | README, guion de demostración, informe final | Pendiente | sin asignar | |
+| 6 | Experimentos E1, E2, E3 y gráficas | Terminada | Juan Rojas | `feat/bench` |
+| 7 | README, guion de demostración, informe final | **Siguiente** | sin asignar | |
 
 La fase 7 está sin asignar. Quien la tome anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
 
@@ -31,7 +31,31 @@ El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](p
 
 ## Siguiente paso
 
-Con la interfaz web terminada sigue la **Fase 6** (experimentos, rama `feat/bench`). Usa la API de `pvlt.vault` descrita abajo y puede medir con el CLI o directamente contra `Vault`, y para E1 contra `derive_kek`. Después queda la **Fase 7** (cierre), que ya puede preparar el guion de demostración sobre la interfaz web.
+Con los experimentos terminados sigue la **Fase 7** (cierre): README, guion de demostración sobre la interfaz web e informe final. Los números y las gráficas del informe salen de `bench/results/`, y el resumen de lo observado está abajo.
+
+### Resultados de los experimentos
+
+Equipo de referencia: Intel Core i5-10300H (8 hilos), Windows 10 Pro con Docker Desktop sobre WSL2, máquina virtual de 3,83 GiB, Python 3.12.16, `cryptography` 50.0.2 y OpenSSL 4.0.3. Todo está en `bench/results/sistema.csv`.
+
+- **E1, desbloqueo** (mediana de 20, `e1_argon2.csv`): A 0,109 s y 98 MiB de pico, B 0,422 s y 290 MiB, C 1,908 s y 2 082 MiB. El pico menos la base del proceso coincide con la memoria de Argon2id con un margen de 1 MiB.
+- **Configuración final: B.** Es la de mayor memoria que desbloquea en 1 s o menos. C casi duplica ese límite. B ya era el valor por defecto, así que no cambia ningún parámetro.
+- **Carriles** (`e1_carriles.csv`): con 256 MiB y 3 pasadas el desbloqueo pasa de 0,840 s con 1 carril a 0,528 s con 2 y 0,414 s con 4. El tiempo de CPU se mantiene entre 0,83 y 0,99 s, y el cociente CPU sobre pared sube de 1,00 a 1,57 y 2,40. Los carriles sí corren en paralelo, aunque con 4 la ganancia no llega a ser de 4 veces.
+- **Costo de diccionario** (`e1_diccionario.csv`): con B, recorrer RockYou (1,43·10^7 candidatos) cuesta unas 1 683 horas de pared en este equipo, y una contraseña de 40 bits unos 14 700 años. Es t × |D| en hardware como este. Un atacante con GPU o muchos núcleos lo reduce, y el informe debe decirlo.
+- **E2** (mediana de 50, `e2_abrir_guardar.csv`): guardar cuesta entre 4 y 9 ms y abrir entre 0,4 y 12,8 ms para 1 a 500 entradas. El guardado lo domina la escritura atómica con `fsync`, y la apertura de 500 entradas la domina el análisis estricto del JSON, no el AEAD. Frente al Argon2id de B, abrir y guardar no pesan.
+- **E3** (`e3_tamano.csv`): la parte fija ocupa 183 bytes (cabecera, sobre, etiqueta de C y resumen). Por debajo de unas 14 entradas el archivo mide 4 279 bytes por el relleno a 4 096. Desde 100 entradas, el archivo ocupa como mucho un 3 % más que el JSON.
+
+### Cómo se repiten los experimentos
+
+```
+docker compose build
+docker compose run --rm -e PVLT_BENCH_HOST="descripción del anfitrión" -v "${PWD}/bench/results:/app/bench/results" app python -m bench.run_all
+```
+
+- Tarda unos 5 minutos. `--quick` lo recorre con pocas repeticiones y sin C, solo para comprobar que funciona. Sus números no valen para el informe.
+- Cada experimento también se ejecuta por separado: `python -m bench.e1_argon2`, `bench.e2_open_save`, `bench.e3_size` y `bench.plots`.
+- Los CSV de resumen y las PNG se versionan. Las mediciones por repetición quedan en `bench/results/raw/`, que no se versiona.
+- E1 necesita algo más de 2 GiB libres en Docker para C. Si el proceso muere por falta de memoria, mide la alternativa del diseño (1 GiB y 2 pasadas) y la anota como C'.
+- Mientras se mide no conviene ejecutar nada pesado en el equipo, porque altera los tiempos.
 
 ### Cómo se usa la interfaz web
 
@@ -143,12 +167,17 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-19 | `pvlt.web` importa de `pvlt.storage` solo `FormatError`, `CorruptedFileError`, `VaultLockedError`, `FileStatus` y `RecoveryReport` | El mismo criterio que el CLI. Son excepciones y estados que nacen en esa capa y la interfaz debe traducirlos |
 | 2026-11-19 | `pvlt.web` también pasa `mypy` en modo estricto | Igual que el CLI, es una interfaz que maneja contraseñas |
 | 2026-11-19 | Las pruebas de navegador llevan la marca `browser` | Se ejecutan por defecto. Si `playwright` o Chromium no están instalados se omiten solas, y `-m "not browser"` las excluye |
+| 2026-11-21 | La configuración final de Argon2id es B (256 MiB, 3 pasadas, 4 carriles) | E1: es la de mayor memoria con un desbloqueo de 1 s o menos (0,422 s). C tarda 1,908 s |
+| 2026-11-21 | E1 mide `Vault.unlock` completo, cada configuración en un proceso hijo propio | Es lo que espera el usuario. El pico `ru_maxrss` de un proceso nuevo pertenece solo a esa configuración |
+| 2026-11-21 | Los carriles se comprueban con el cociente entre tiempo de CPU y tiempo de pared, variando solo `parallelism` sobre B | `process_time` suma la CPU de todos los hilos. Un cociente mayor que 1 prueba que trabajan a la vez |
+| 2026-11-21 | E2 usa una KEK aleatoria y mide por separado sellar, escritura atómica, lectura con comprobaciones 1 y 2, y comprobaciones 3 y 4 con el JSON | Excluye Argon2id, como pide el diseño, y muestra qué domina cada operación |
+| 2026-11-21 | `matplotlib` entra en `requirements.txt` | Las gráficas se generan con los mismos comandos y en la misma imagen que el resto |
+| 2026-11-21 | `bench/` pasa `mypy` en modo estricto y `ruff`, con S105 permitido por la contraseña sintética fija | Los scripts forman parte de lo que se evalúa (métricas reproducibles) |
 
 ## Pendientes y advertencias
 
-- **Carriles de Argon2id en varios hilos:** sin confirmar. Con 4 carriles el tiempo de pared baja, pero el tiempo de CPU medido no crece como se esperaría. E1 debe medirlo con una herramienta fiable y el informe debe decir qué se observó.
 - **El resumen SHA-256 no protege contra manipulación.** Quien altera un campo y recalcula el resumen supera las comprobaciones 1 y 2. `tests/storage/test_format.py` lo deja explícito. La Fase 3 debe demostrar que las etiquetas AEAD rechazan esos archivos.
-- **Configuración final de Argon2id:** se decide en la Fase 6 con los resultados de E1. Por ahora el valor por defecto propuesto es la configuración B.
+- **Los números de E1 dependen del equipo.** La regla de 1 s se aplicó en el equipo de referencia descrito arriba. En otro equipo B puede tardar más o menos, y el informe debe presentar la decisión ligada a ese equipo.
 - **Reconstruir la imagen tras cada cambio.** El código se copia a la imagen, no se monta. Sin `docker compose build` las pruebas corren contra la versión anterior.
 - **Docker Desktop no arranca y muestra "remove ...sock: El sistema no tiene acceso al archivo".** Pasa si se lanza dos veces o tras un cierre brusco. Se arregla finalizando todos los procesos de Docker desde el Administrador de tareas y abriéndolo una sola vez. No hace falta "Reset to factory defaults".
 - **La suite completa tarda cerca de dos minutos** en el contenedor. Para iterar, `pytest -m "not slow"` o un solo archivo.
@@ -163,6 +192,17 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-21 · Juan Rojas · `feat/bench`
+
+- Fase 6 completa: `bench/common.py`, `e1_argon2.py`, `e2_open_save.py`, `e3_size.py`, `plots.py` y `run_all.py`.
+- Resultados medidos en el contenedor y versionados en `bench/results/`: seis CSV de resumen (incluido `sistema.csv`) y cinco gráficas. El resumen está arriba, en "Resultados de los experimentos".
+- La configuración final de Argon2id es B, que ya era el valor por defecto. No cambian `pvlt/params.py` ni el formato.
+- E1 confirma que los carriles corren en paralelo, lo que cierra el aviso abierto en la Fase 0.
+- 11 pruebas nuevas en `tests/bench/`. Ejecutan los scripts con ajustes mínimos y comprueban que ningún CSV ni ninguna PNG contiene la contraseña sintética ni datos de entradas.
+- Fuera de `bench/` cambian `requirements.in` y `requirements.txt` (`matplotlib`) y `pyproject.toml` (`mypy` estricto y `ruff` en `bench/`).
+- Se corrige una carrera en `test_t12_a_second_copy_restarts_the_timer`, que fallaba siempre en este equipo (también en `main`). La prueba daba la copia por terminada al ver el aviso anterior y leía el portapapeles antes de que se vaciara. Solo cambia la prueba, no la interfaz.
+- Sigue: Fase 7 (cierre).
 
 ### 2026-11-19 · Claudia Elias · `feat/web`
 

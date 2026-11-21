@@ -82,9 +82,15 @@ Estado al 2026-11-19: capa completa, 654 pruebas en verde dentro del contenedor 
 
 ## Fase 6 · Experimentos
 
-- [ ] `bench/e1_argon2.py`, `bench/e2_open_save.py`, `bench/e3_size.py`, resultados CSV en `bench/results/`.
-- [ ] Gráficas para el informe y estimación del costo de diccionario.
-- [ ] Decidir la configuración final de Argon2id y anotarlo.
+- [x] `bench/e1_argon2.py`, `bench/e2_open_save.py`, `bench/e3_size.py`, resultados CSV en `bench/results/`.
+- [x] Gráficas para el informe y estimación del costo de diccionario.
+- [x] Decidir la configuración final de Argon2id y anotarlo.
+
+Estado al 2026-11-21: experimentos medidos en el contenedor, 665 pruebas en verde (11 de `bench/`) y `mypy` estricto sin errores, también en `bench/`. La configuración final es B. Los resultados están resumidos en `estado.md` y el método en `diseno.md` §10.
+
+- `bench/run_all.py` ejecuta todo y escribe en `bench/results/` los CSV de resumen y las gráficas. Las mediciones por repetición van a `bench/results/raw/`, que no se versiona.
+- E1 mide cada configuración en un proceso hijo propio, para que `ru_maxrss` sea solo suyo. La contraseña sintética no sale de ese proceso.
+- Las variantes de carriles comparten memoria y pasadas con B y solo cambian `parallelism`.
 
 ## Fase 7 · Cierre
 

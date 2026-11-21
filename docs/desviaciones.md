@@ -17,4 +17,4 @@ Resultado de `scripts/check_env.py` dentro de la imagen de referencia el 2026-11
 | `derive_into` | Existe y escribe los 32 bytes en un `bytearray` preasignado. La KEK puede derivarse directamente en el búfer que luego se sobrescribe con ceros |
 | Tipos de clave de `ChaCha20Poly1305` | Acepta `bytes`, `bytearray` y `memoryview` |
 | Vector de RFC 8439 §2.8.2 | Coincide |
-| Carriles de Argon2id en varios hilos | Indicio a favor sin confirmar. Con 64 MiB y 3 pasadas el tiempo de pared baja de 0,173 s (1 carril) a 0,070 s (4 carriles), pero el tiempo de CPU medido no creció como se esperaría. E1 debe medirlo con una herramienta fiable |
+| Carriles de Argon2id en varios hilos | Confirmado por E1 el 2026-11-21. Con 256 MiB y 3 pasadas el tiempo de pared baja de 0,840 s (1 carril) a 0,414 s (4 carriles) con un tiempo de CPU parecido, y el cociente CPU sobre pared sube de 1,00 a 2,40. Ver `bench/results/e1_carriles.csv` |

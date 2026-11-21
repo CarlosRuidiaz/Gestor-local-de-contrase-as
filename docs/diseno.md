@@ -205,6 +205,8 @@ Versionado: `format_version` (estructura binaria) y `schema` (JSON) son independ
 
 La configuración final es la de mayor memoria con desbloqueo ≤ 1 s en el equipo de referencia (E1). E1 también comprueba si los carriles se procesan en paralelo.
 
+Resultado de E1 **(concreción)**: la configuración final es **B**, con un desbloqueo de 0,422 s (mediana de 20) frente a 1,908 s de C en el equipo de referencia (Intel Core i5-10300H, Docker sobre WSL2). Coincide con el valor por defecto propuesto, así que `CONFIG_B` sigue siendo el de `Vault.create`. Con 256 MiB y 3 pasadas, pasar de 1 a 4 carriles baja el tiempo de pared de 0,840 s a 0,414 s con un tiempo de CPU parecido, así que los carriles sí se procesan en paralelo.
+
 ## 7. Persistencia y guardado atómico
 
 1. Adquirir el archivo de bloqueo (`boveda.pvlt.lock`) al iniciar. Si ya existe un proceso vivo, negarse a abrir.
@@ -284,3 +286,12 @@ Concreciones de la capa web **(concreción)**:
 - **E2**: abrir y guardar sin Argon2id con 1, 100 y 500 entradas (mediana de 50).
 - **E3**: tamaño del archivo frente al JSON sin cifrar.
 - Reportar CPU, RAM y SO. Guardar resultados en CSV dentro de `bench/results/` y generar gráficas para el informe.
+
+Concreciones del método **(concreción)**:
+
+- E1 mide `Vault.unlock` completo (comprobaciones 1 a 4). Cada configuración corre en un proceso hijo nuevo, y el pico es su `ru_maxrss`. También se anota la memoria residente antes de crear la bóveda, para separar lo que ocupa el intérprete.
+- El uso de varios núcleos se mide con el cociente entre `time.process_time` (CPU de todos los hilos) y el tiempo de pared, sobre B con 1, 2 y 4 carriles (mediana de 10).
+- El costo de diccionario se da como t × |D| con t la mediana de pared, y también en horas de núcleo con el tiempo de CPU, para cuatro tamaños de |D|.
+- E2 usa una KEK aleatoria y separa sellar, escritura atómica, lectura con comprobaciones 1 y 2, y comprobaciones 3 y 4 con el análisis del JSON. Cada guardado escribe la generación siguiente, igual que `Vault`.
+- E3 cubre de 0 a 500 entradas (el máximo) y separa el JSON, el relleno y la parte fija.
+- Las entradas son sintéticas: sitio y usuario cortos, contraseña generada de 20 caracteres y una nota breve.
