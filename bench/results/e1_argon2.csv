@@ -1,0 +1,4 @@
+config,m_cost_mib,t_cost,parallelism,repeticiones,desbloqueo_mediana_s,desbloqueo_min_s,desbloqueo_max_s,cpu_mediana_s,cpu_sobre_pared,rss_base_mib,rss_pico_mib,rss_incremento_mib
+A,64,3,4,20,0.109321,0.092851,0.148617,0.192022,1.756498,32.488281,97.582031,65.093750
+B,256,3,4,20,0.422403,0.374756,0.694295,1.026808,2.430874,32.816406,289.964844,257.148438
+C,2048,1,4,20,1.908148,1.717088,2.115500,3.765519,1.973390,32.390625,2081.554688,2049.164062
