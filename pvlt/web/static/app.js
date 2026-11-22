@@ -650,6 +650,7 @@
   async function saveSettings() {
     const seconds = Number.parseInt($("settings-autolock").value, 10) || 0;
     await api("PUT", "/api/settings", { autolock_seconds: seconds });
+    renderAutolock(await api("GET", "/api/status"));
     notice("Ajustes guardados.");
   }
 
