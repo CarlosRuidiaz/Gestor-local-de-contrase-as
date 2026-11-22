@@ -202,7 +202,7 @@ def check_request(guard: Guard, request: Request) -> Response | None:
     if path == "/api/session" and request.method == "POST":
         return None  # the token exchange, authenticated by the startup token itself
     if not guard.session_valid(request.cookies.get(SESSION_COOKIE)):
-        return error_response(401, "no_session", "Sesión no válida. Abre la URL que mostró pvlt")
+        return error_response(401, "no_session", "Sesión no válida. Abre la URL que mostró pvlt.")
     if not guard.csrf_valid(request.headers.get(CSRF_HEADER)):
         return error_response(403, "csrf", "Falta el token CSRF o no es válido")
     return None
@@ -288,7 +288,7 @@ def create_app(
         pair = guard.redeem(body.token)
         if pair is None:
             return error_response(
-                401, "token", "El enlace de inicio ya se usó o no es válido. Reinicia pvlt"
+                401, "token", "El enlace de inicio ya se usó o no es válido. Reinicia pvlt."
             )
         session, csrf = pair
         response = JSONResponse({"csrf": csrf})

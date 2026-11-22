@@ -159,6 +159,12 @@ def test_invalid_input_is_rejected_without_saving(vault: Vault, vault_path: Path
     with pytest.raises(ValidationError) as info:
         vault.add(site="", username="u", password="CLAVE-SINTETICA-x")
     assert info.value.field == "site"
+    for blank in (" ", "   ", "\t\n"):
+        with pytest.raises(ValidationError) as info:
+            vault.add(site=blank, username="u", password="CLAVE-SINTETICA-x")
+        assert info.value.field == "site"
+        with pytest.raises(ValidationError):
+            vault.update(kept.id, site=blank)
     with pytest.raises(ValidationError):
         vault.update(kept.id, password="")
     with pytest.raises(ValidationError):

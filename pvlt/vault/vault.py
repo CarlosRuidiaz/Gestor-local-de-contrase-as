@@ -48,6 +48,15 @@ MASTER_PASSWORD_MIN_LEN: Final = 8
 MASTER_PASSWORD_MAX_LEN: Final = 1024
 
 
+def _check_site(site: str) -> None:
+    """A site made only of whitespace would show as an empty row. Checked when writing.
+
+    Opening does not apply it: the file format rules (section 5.1) stay as they are.
+    """
+    if not site.strip():
+        raise ValidationError("site")
+
+
 def _encode_password(password: str, *, new: bool) -> bytes:
     """UTF-8 without normalization. Length rules apply only when a password is being set."""
     if not isinstance(password, str) or len(password) > MASTER_PASSWORD_MAX_LEN:
@@ -290,6 +299,7 @@ class Vault:
         _, content = self._active()
         if len(content.entries) >= MAX_ENTRIES:
             raise ValidationError("entries")
+        _check_site(site)
         stamp = self._now()
         entry = Entry(
             id=new_entry_id(),
@@ -314,6 +324,8 @@ class Vault:
     ) -> Entry:
         current = self.get(entry_id)
         _, content = self._active()
+        if site is not None:
+            _check_site(site)
         updated = dataclasses.replace(
             current,
             site=current.site if site is None else site,
