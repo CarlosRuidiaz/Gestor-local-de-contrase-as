@@ -94,7 +94,7 @@ Estado al 2026-11-21: experimentos medidos en el contenedor, 665 pruebas en verd
 
 ## Fase 7 · Cierre
 
-- [ ] README: instalación desde cero (Docker y local), comandos, guion de demostración paso a paso.
-- [ ] `scripts/demo.sh` o guion equivalente que recorra los escenarios exigidos.
-- [ ] Revisar `desviaciones.md` y redactar el informe final (8 a 12 páginas, sin punto y coma).
+- [x] README: instalación desde cero (Docker y local), comandos, guion de demostración paso a paso.
+- [x] `scripts/demo.py`, guion equivalente que recorre los escenarios exigidos.
+- [x] Revisar `desviaciones.md` y redactar el informe final (8 a 12 páginas, sin punto y coma).
 - [ ] Ejecutar la suite completa en un clon limpio dentro de Docker.

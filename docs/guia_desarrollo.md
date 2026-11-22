@@ -25,6 +25,8 @@ Esta guía contiene lo que no cambia de una sesión de trabajo a otra: reglas, c
 | `docs/plan_implementacion.md` | Fases con casillas de verificación. Se marca cada casilla al terminarla. |
 | `docs/desviaciones.md` | Registro obligatorio de todo cambio respecto al diseño entregado. El informe final debe explicarlos. |
 | `docs/entregable1/Entregable1_Proyecto_final.pdf` | Documento de diseño que se entregó. Si contradice a `diseno.md`, manda el PDF. |
+| `README.md` | Instalación, uso, pruebas, guion de demostración y experimentos, para quien evalúa. |
+| `docs/informe/` | Informe final en LaTeX, su PDF y la imagen para compilarlo (ver `estado.md`). |
 | `docs/referencias/` | PDF del curso. No se versionan, cada integrante los copia a mano (ver su README). |
 
 ## Stack
@@ -48,7 +50,7 @@ pvlt/
   cli.py      punto de entrada mínimo por línea de comandos para pruebas y experimentos.
 tests/        pytest, organizado por capa.
 bench/        scripts de los experimentos E1, E2, E3 y sus resultados en CSV.
-scripts/      utilidades (verificación del entorno, regenerar dependencias).
+scripts/      guion de demostración, daño controlado de un archivo, verificación del entorno, regenerar dependencias.
 docs/         contexto, diseño, estado y desviaciones.
 ```
 
@@ -119,6 +121,7 @@ docker compose run --rm app mypy
 docker compose run --rm app ruff check .
 docker compose run --rm app ruff format --check .
 docker compose run --rm app python scripts/check_env.py
+docker compose run --rm app python -m scripts.demo
 ```
 
 Aplicar las correcciones automáticas de `ruff` sobre los archivos del equipo anfitrión (PowerShell):

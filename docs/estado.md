@@ -4,13 +4,13 @@ Este archivo se actualiza **en cada push**. Quien retoma el trabajo hace `git pu
 
 **Antes de hacer cualquier commit** hay que leer la sección "Reglas de autoría y de lo que se sube" de la guía. Indica quién firma cada fase, qué no puede subirse nunca y cómo se sube.
 
-Última actualización: 2026-11-21, Juan Rojas (Fase 6, experimentos).
+Última actualización: 2026-11-21, Carlos Ruidiaz (Fase 7, cierre, en revisión).
 
 ## Resumen
 
-Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/`, `vault/` y `web/` están terminadas y probadas. La bóveda se usa desde la interfaz web local (`python -m pvlt.web`) o desde el CLI mínimo (`python -m pvlt.cli`). Los experimentos E1, E2 y E3 están medidos, con sus CSV y gráficas en `bench/results/`. Falta el cierre (README, guion de demostración e informe).
+Entregable 2 (60 % de la nota), semana académica 16. Las capas `crypto/`, `storage/`, `vault/` y `web/` están terminadas y probadas. La bóveda se usa desde la interfaz web local (`python -m pvlt.web` o el comando `pvlt`) o desde el CLI mínimo (`python -m pvlt.cli` o `pvlt-cli`). Los experimentos E1, E2 y E3 están medidos, con sus CSV y gráficas en `bench/results/`. El cierre (README, guion de demostración e informe en LaTeX) está escrito en la rama `docs/cierre` y espera la revisión del equipo.
 
-La suite tiene 665 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre todas las pruebas del diseño, de T1 a T13, y los scripts de los experimentos.
+La suite tiene 667 pruebas en verde dentro del contenedor, con `mypy` estricto y `ruff` sin avisos. Cubre todas las pruebas del diseño, de T1 a T13, y los scripts de los experimentos.
 
 ## Fases
 
@@ -23,15 +23,51 @@ La suite tiene 665 pruebas en verde dentro del contenedor, con `mypy` estricto y
 | 4 | CLI mínimo con `getpass` | Terminada | Juan Bolivar | `feat/cli` |
 | 5 | `web/`: FastAPI, seguridad HTTP, frontend. T9, T12, T13 | Terminada | Claudia Elias | `feat/web` |
 | 6 | Experimentos E1, E2, E3 y gráficas | Terminada | Juan Rojas | `feat/bench` |
-| 7 | README, guion de demostración, informe final | **Siguiente** | sin asignar | |
+| 7 | README, guion de demostración, informe final | **En revisión** | Carlos Ruidiaz | `docs/cierre` |
 
-La fase 7 está sin asignar. Quien la tome anota su nombre en la tabla en el primer commit de su rama, y todos los commits de esa fase van a su nombre.
+La fase 7 está en la rama `docs/cierre`, sin fusionar, para que el resto del equipo la revise antes de entregarla.
 
 El detalle de cada fase, con sus casillas, está en [`plan_implementacion.md`](plan_implementacion.md). Las fases 5 y 6 pueden avanzar en paralelo una vez exista la 4.
 
 ## Siguiente paso
 
-Con los experimentos terminados sigue la **Fase 7** (cierre): README, guion de demostración sobre la interfaz web e informe final. Los números y las gráficas del informe salen de `bench/results/`, y el resumen de lo observado está abajo.
+**Revisar la Fase 7 y entregar.** Todo el producto está terminado. Lo que falta es que cada integrante revise la rama `docs/cierre` y, con el visto bueno de todos, fusionarla en `main`:
+
+```
+git fetch origin
+git switch docs/cierre
+```
+
+- `README.md`: seguir la instalación desde cero en un clon limpio y comprobar que cada comando funciona tal como está escrito.
+- `python -m scripts.demo` dentro del contenedor (ver "Cómo se ejecuta la demostración"). Debe terminar con «Todas las comprobaciones pasaron».
+- El guion manual de la interfaz web del README, de principio a fin, incluida la restauración del respaldo.
+- `docs/informe/informe.pdf`: leerlo completo. Comprobar números, redacción, que no tenga punto y coma y que no pase de 12 páginas. Las correcciones van en `informe.tex` y luego se recompila.
+- Decidir si se agrega algo del Entregable 1 que falte en el informe o si alguna sección debe recortarse.
+
+Quien haga correcciones las sube en la misma rama con commits a su nombre y lo anota en la bitácora. El merge en `main` lo hace Carlos Ruidiaz cuando el equipo esté de acuerdo.
+
+### Cómo se ejecuta la demostración
+
+```
+docker compose build
+docker compose run --rm app python -m scripts.demo
+docker compose run --rm app python -m scripts.demo --config B --keep
+```
+
+- Recorre en una carpeta temporal los siete escenarios exigidos (T1 a T8 en vivo) con 50 comprobaciones `[OK]` o `[FALLO]`, sin mostrar ninguna contraseña. Tarda alrededor de un minuto.
+- `scripts/damage.py` invierte un bit de un archivo, para la demostración manual de la restauración del respaldo en la interfaz web: `docker compose run --rm app python -m scripts.damage /data/boveda.pvlt` con el servidor detenido.
+
+### Cómo se compila el informe
+
+El informe está en `docs/informe/informe.tex`, y `informe.pdf` se versiona junto a él. Las gráficas se leen directamente de `bench/results/`. Para compilar hace falta una imagen con LaTeX, que se construye una vez:
+
+```
+docker build -t pvlt-informe docs/informe
+docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -pdf informe.tex
+docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -c
+```
+
+El segundo comando genera `informe.pdf` y el tercero borra los auxiliares, que además están en `.gitignore`. Desde Git Bash hay que anteponer `MSYS_NO_PATHCONV=1` y usar `$(pwd -W)` en lugar de `${PWD}`.
 
 ### Resultados de los experimentos
 
@@ -173,6 +209,9 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 | 2026-11-21 | E2 usa una KEK aleatoria y mide por separado sellar, escritura atómica, lectura con comprobaciones 1 y 2, y comprobaciones 3 y 4 con el JSON | Excluye Argon2id, como pide el diseño, y muestra qué domina cada operación |
 | 2026-11-21 | `matplotlib` entra en `requirements.txt` | Las gráficas se generan con los mismos comandos y en la misma imagen que el resto |
 | 2026-11-21 | `bench/` pasa `mypy` en modo estricto y `ruff`, con S105 permitido por la contraseña sintética fija | Los scripts forman parte de lo que se evalúa (métricas reproducibles) |
+| 2026-11-21 | El comando `pvlt` arranca la interfaz web y el CLI pasa a ser `pvlt-cli` | Es lo que describe el Entregable 1. Así no hay desviación que explicar |
+| 2026-11-21 | La demostración es un script de Python (`scripts/demo.py`) sobre la API de `vault/`, no un guion de shell sobre el CLI | El CLI pide las contraseñas con `getpass` y no se puede automatizar sin pasarlas por argumentos. El script muestra cada escenario con su comprobación explícita |
+| 2026-11-21 | El informe se escribe en LaTeX en `docs/informe/` y el PDF se versiona | Acuerdo del equipo. El PDF compilado queda disponible para revisar sin instalar LaTeX |
 
 ## Pendientes y advertencias
 
@@ -185,13 +224,23 @@ Solo las que no se deducen leyendo el diseño. Las que afectan al formato o a la
 - **Ventana en el cambio de contraseña:** entre el guardado y la reescritura del respaldo, el `.bak` todavía abre con la contraseña anterior. Está documentado en `diseno.md` §4.9. Conviene mencionarlo en el informe como limitación.
 - **Timeouts de PyPI** al regenerar `requirements.txt`. Usar `PIP_DEFAULT_TIMEOUT=120` como indica la guía.
 - **Rutas en Git Bash.** Al pasar rutas del contenedor (`/tmp/...`, `/app`) a `docker run` desde Git Bash, este las convierte en rutas de Windows. Hay que anteponer `MSYS_NO_PATHCONV=1` o usar PowerShell.
-- **El comando `pvlt` abre el CLI, no la web.** El Entregable 1 dice que "el comando pvlt inicia un servidor y abre el navegador", pero desde la Fase 4 el script `pvlt` apunta a `pvlt.cli`. La web se arranca con `python -m pvlt.web`, que es también lo que ejecuta la imagen por defecto. La Fase 7 debe decidir si se cambia el script o se explica en el informe.
+- **La gráfica de E3 dibuja escalones engañosos.** `bench/results/e3_tamano.png` une los puntos medidos con escalones planos, lo que sugiere que entre dos mediciones el archivo ocupa menos que el JSON, y no es así. El informe usa una tabla en su lugar. Si se corrige `bench/plots.py` (por ejemplo, trazando solo los puntos medidos), hay que regenerar la gráfica.
 - **Token en los argumentos del navegador (limitación).** Fuera de Docker, mientras el sistema lanza el navegador, la URL con el token aparece en los argumentos de ese proceso. Se mitiga porque el token sirve una sola vez. Conviene mencionarlo en el informe junto a A4.
 - **Aviso de Starlette en las pruebas.** `TestClient` emite `StarletteDeprecationWarning` porque recomienda `httpx2`. No afecta a nada y se deja hasta que haya que actualizar dependencias.
 
 ## Bitácora
 
 Una entrada por sesión de trabajo que termine en push, la más reciente arriba. Formato: fecha, quién, rama, qué se hizo, qué quedó pendiente o a medias, y avisos para quien sigue.
+
+### 2026-11-21 · Carlos Ruidiaz · `docs/cierre`
+
+- Fase 7 escrita y en revisión, sin fusionar en `main`.
+- `README.md` con instalación desde cero (Docker y local), uso de la web y del CLI, pruebas, guion de demostración automático y manual, experimentos y límites de seguridad.
+- `scripts/demo.py` recorre los escenarios exigidos con 50 comprobaciones, y `scripts/damage.py` sirve para la demostración manual del respaldo. Dos pruebas nuevas en `tests/test_demo.py`. Ambos scripts pasan `mypy` estricto.
+- `docs/informe/`: informe final en LaTeX con su PDF y el `Dockerfile` para compilarlo.
+- El comando `pvlt` apunta ahora a la web y el CLI a `pvlt-cli`. Cambian `pyproject.toml` y el `prog` de los dos analizadores de argumentos.
+- Suite completa, `mypy` y `ruff` en verde dentro del contenedor.
+- Sigue: revisión del equipo (ver "Siguiente paso") y merge.
 
 ### 2026-11-21 · Juan Rojas · `feat/bench`
 
