@@ -1,6 +1,6 @@
 # Especificación técnica de `pvlt`
 
-Este documento traduce el Entregable 1 (`docs/entregable1/Entregable1_Proyecto_final.pdf`) a una especificación implementable. Si algo aquí no coincide con el PDF, manda el PDF y la diferencia se corrige en este archivo. Los valores que el PDF no fija y que aquí se concretan están marcados como **(concreción)**. Si se cambian, basta con mantener este archivo coherente y anotarlo en `desviaciones.md` solo si contradice algo escrito en el PDF.
+Este documento traduce el Entregable 1 (`docs/entregable1/Entregable1_Proyecto_final.pdf`) a una especificación implementable. Si algo aquí no coincide con el PDF, manda el PDF y la diferencia se corrige en este archivo. Los valores que el PDF no fija y que aquí se concretan están marcados como **(concreción)**. Las desviaciones respecto al PDF, si las hubiera, se explican en el informe final (`docs/informe/`).
 
 ## 1. Escenario
 
@@ -189,6 +189,7 @@ Relleno: `pad(P) = P || 0x80 || 0x00 * k`, con k mínimo tal que la longitud sea
 Concreciones del contenido **(concreción)**:
 
 - Límites por campo, en caracteres: `site` de 1 a 256, `username` de 0 a 256, `password` de 1 a 1024 y `notes` de 0 a 8192. Ningún campo admite el carácter nulo.
+- Al agregar o editar una entrada se rechaza un `site` vacío o de solo espacios, que se vería como una fila en blanco. Al abrir no se aplica, para no cambiar las reglas del formato. La interfaz web quita además los espacios al principio y al final del sitio y del usuario.
 - `autolock_seconds` entre 30 y 3600. `generator.length` entre 8 y 128 y al menos una clase activa.
 - Al abrir solo se acepta la codificación canónica: tras parsear, el contenido se vuelve a serializar y debe coincidir byte a byte con lo descifrado. También se rechazan claves duplicadas, claves desconocidas, tipos incorrectos, identificadores repetidos y más de 500 entradas. Todo ello es `TamperedContentError`.
 - El relleno debe ser mínimo: más de 4095 ceros tras el `0x80` se rechaza.
@@ -254,6 +255,10 @@ Concreciones de la capa web **(concreción)**:
 - Las respuestas de error son `{"error", "message", "field"}` con mensajes fijos en español. Se sustituye el manejador de validación de FastAPI, que devolvería los valores enviados, y cualquier excepción se captura antes de llegar al registro de uvicorn. Un error desconocido solo muestra el nombre de su clase.
 - La sesión se bloquea por botón, por inactividad y al cerrar el servidor (Ctrl+C o SIGTERM). Un hilo comprueba la inactividad cada 5 s para borrar la KEK a tiempo aunque no llegue ninguna petición. Consultar el estado no cuenta como actividad. Recargar la página no bloquea la bóveda.
 - Exportar e importar usan un nombre de archivo, no una ruta: letras, dígitos, `.`, `_` y `-`, terminado en `.pvlt`, en la carpeta de la bóveda y distinto de la bóveda. Así no hay que transferir archivos por el navegador ni escribir temporales fuera del procedimiento atómico.
+- El navegador solo deja escribir en el portapapeles con la pestaña enfocada. Si al vencer los 20 s el usuario está en otra ventana, la página muestra un aviso fijo y repite el vaciado en cuanto la pestaña recupera el foco o el usuario interactúa con ella.
+- Pegar en la misma pestaña el enlace de un `pvlt` reiniciado solo cambia el fragmento, y el navegador no recarga. La página escucha `hashchange` y se recarga para canjear el token nuevo.
+- Los campos con datos de la bóveda (sitio, usuario, contraseña, notas y búsqueda) llevan `spellcheck="false"`, porque algunos correctores del navegador envían el texto a un servicio externo.
+- La lista se ordena alfabéticamente por sitio y usuario en la página, y las fechas se muestran en la hora local del navegador.
 - Los formularios usan `method="post"` para que un envío anterior a la carga del script nunca ponga una contraseña en la URL. La CSP impide cualquier código o estilo en línea, así que la página no tiene ninguno.
 - Fuera de Docker el servidor abre el navegador con `webbrowser.open(url)`. Mientras el sistema lanza el navegador, la URL con el token puede verse en los argumentos de ese proceso. Como el token solo sirve una vez, si otro proceso lo canjeara antes la página del usuario mostraría que el enlace ya se usó (limitación declarada).
 

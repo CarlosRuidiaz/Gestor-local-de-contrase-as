@@ -54,7 +54,7 @@ docker compose up
 ```
 
 1. La terminal imprime una URL de la forma `http://127.0.0.1:8765/#t=...`. Se abre en el navegador del equipo.
-2. El enlace sirve **una sola vez**. Al cargarse se canjea por una cookie de sesión y desaparece de la barra de direcciones. Recargar la página conserva la sesión, pero otra pestaña u otro navegador necesitan reiniciar `pvlt`.
+2. El enlace sirve **una sola vez**. Al cargarse se canjea por una cookie de sesión y desaparece de la barra de direcciones. Recargar la página conserva la sesión, pero otra pestaña u otro navegador necesitan reiniciar `pvlt`. Tras reiniciarlo, el enlace nuevo puede pegarse en la misma pestaña.
 3. La primera vez se crea la bóveda eligiendo la contraseña maestra (de 8 a 1024 caracteres). Conviene rechazar el ofrecimiento del navegador de guardarla.
 4. Ctrl+C en la terminal cierra el servidor y bloquea la bóveda.
 
@@ -122,7 +122,7 @@ docker compose run --rm app ruff check .
 docker compose run --rm app ruff format --check .
 ```
 
-La suite completa tarda unos tres minutos y cubre las pruebas T1 a T13 del diseño, los scripts de experimentos y el guion de demostración. Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
+La suite completa tarda entre tres y seis minutos, según el equipo, y cubre las pruebas T1 a T13 del diseño, los scripts de experimentos y el guion de demostración. Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
 
 | Prueba | Qué comprueba | Dónde |
 |---|---|---|
@@ -168,7 +168,7 @@ Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenari
 2. **Crear** la bóveda con una contraseña maestra sintética, por ejemplo `demo-maestra-1`.
 3. **Nueva entrada** con el generador: elegir la longitud y las clases, ver la entropía y guardar. Agregar dos o tres entradas más.
 4. **Buscar** escribiendo en el cuadro de búsqueda. La lista se filtra sin pedir nada al servidor.
-5. **Ver**, **Copiar** (el portapapeles se vacía a los 20 s), **Editar** y **Eliminar** sobre una entrada.
+5. **Ver**, **Copiar**, **Editar** y **Eliminar** sobre una entrada. El portapapeles se vacía a los 20 s. Si en ese momento la pestaña no tiene el foco, la página lo avisa y lo vacía al volver a ella.
 6. Escribir en las notas de una entrada `<img src=x onerror=alert(1)>` y comprobar que se muestra como texto.
 7. **Bloquear** y desbloquear con una contraseña equivocada: aparece «Contraseña incorrecta» y la bóveda no cambia. Desbloquear con la correcta.
 8. **Ajustes**: bajar el bloqueo por inactividad a 30 s, esperar y comprobar que la página vuelve a pedir la contraseña.
@@ -205,6 +205,18 @@ Resultados en el equipo de referencia (Intel Core i5-10300H, Docker sobre WSL2):
 
 La configuración final es B, la de mayor memoria que desbloquea en 1 s o menos en el equipo de referencia.
 
+### Elegir la configuración en otro equipo
+
+La regla de 1 s depende del equipo. Para aplicarla en el que va a usar `pvlt`:
+
+```
+docker compose run --rm app python -m bench.calibrate
+```
+
+Mide A, B y C con 5 desbloqueos cada una (menos de medio minuto en el equipo de referencia), muestra el tiempo y la memoria de cada una y recomienda la de mayor memoria que desbloquea en 1 s o menos. No modifica los resultados de referencia. `--skip-c` omite la configuración de 2 GiB en equipos con poca memoria.
+
+La configuración se elige al crear la bóveda, en el campo «Configuración de Argon2id» de la interfaz web o con `python -m pvlt.cli create --config A|B|C`. Queda guardada en la cabecera del archivo, así que cada bóveda se abre con la suya.
+
 ## Estructura del repositorio
 
 ```
@@ -216,9 +228,9 @@ pvlt/
   cli.py      CLI mínimo
   params.py   constantes públicas del protocolo y configuraciones de Argon2id
 tests/        pruebas por capa (crypto, storage, vault, web, bench, CLI y demostración)
-bench/        experimentos E1, E2 y E3 y sus resultados en bench/results/
+bench/        experimentos E1, E2 y E3, calibración de Argon2id y resultados en bench/results/
 scripts/      guion de demostración, daño controlado de un archivo y verificación del entorno
-docs/         diseño, desviaciones, requisitos, estado e informe final
+docs/         especificación técnica, Entregable 1 e informe final
 ```
 
 Las dependencias van en un solo sentido: `web → vault → (crypto, storage)`. Una prueba de humo lo verifica.
@@ -233,8 +245,18 @@ Las dependencias van en un solo sentido: `web → vault → (crypto, storage)`. 
 |---|---|
 | [`docs/informe/`](docs/informe/) | Informe final (fuente LaTeX y PDF) |
 | [`docs/diseno.md`](docs/diseno.md) | Especificación técnica: formato, protocolo, seguridad web, pruebas y experimentos |
-| [`docs/desviaciones.md`](docs/desviaciones.md) | Cambios respecto al Entregable 1 |
-| [`docs/requisitos_entregable2.md`](docs/requisitos_entregable2.md) | Lo que exige el enunciado |
 | [`docs/entregable1/`](docs/entregable1/) | Entregable 1 (diseño y estado del arte) |
 
 Todos los datos de prueba y de demostración son sintéticos.
+
+### Compilar el informe
+
+`docs/informe/informe.pdf` ya está compilado. Para regenerarlo tras cambiar `informe.tex` hace falta una imagen con LaTeX, que se construye una vez:
+
+```
+docker build -t pvlt-informe docs/informe
+docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -pdf informe.tex
+docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -c
+```
+
+El segundo comando genera el PDF y el tercero borra los archivos auxiliares. Las gráficas se leen directamente de `bench/results/`.

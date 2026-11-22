@@ -11,7 +11,7 @@
 \renewcommand{\rmdefault}{ppl}
 \renewcommand{\ttdefault}{lmtt}
 \usepackage{microtype}
-\usepackage[margin=2.3cm]{geometry}
+\usepackage[margin=2.1cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs,tabularx,array}
 \usepackage{graphicx}
@@ -68,7 +68,7 @@
 
 \begin{abstract}
 \noindent
-Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 667 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 1\,700 horas de este equipo para recorrer un diccionario del tamaño de RockYou.
+Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 672 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 1\,700 horas de este equipo para recorrer un diccionario del tamaño de RockYou.
 \end{abstract}
 
 \section{Introducción y alcance}
@@ -189,6 +189,35 @@ Cada DEK cifra un único mensaje, así que bajo ella la unicidad del nonce es es
 
 \textbf{Cambiar la contraseña maestra} verifica la actual derivando con la sal vigente y abriendo $W$ del archivo en disco, genera sal nueva, deriva otra KEK y guarda. Después reescribe también el respaldo, para que ningún archivo siga abriéndose con la contraseña anterior. \textbf{Exportar} usa el mismo formato con \code{purpose} \code{0x02}, contraseña, sal, KEK y \code{vault\_id} propios. \textbf{Importar} aplica las mismas cuatro comprobaciones exigiendo ese propósito, muestra una vista previa y, si coincide el UUID o el par sitio y usuario, deja elegir entre omitir, sustituir o conservar ambas. \textbf{El generador} usa solo \code{secrets} con muestreo por rechazo: genera candidatas uniformes sobre la unión de las clases elegidas y descarta las que no contienen todas. El resultado es uniforme sobre las contraseñas válidas, y la entropía mostrada, longitud por $\log_2$ del alfabeto, es una cota superior que excede la real en unos 0,15 bits con la configuración por defecto.
 
+\subsection{Por qué estas elecciones y no otras}\label{sec:justificacion}
+
+\textbf{Función de derivación.} Un gestor local enfrenta el peor caso de los ataques a contraseñas. Quien copia el archivo prueba candidatas fuera de línea, sin que nada limite los intentos, con un costo del orden de $|D|$ sobre un diccionario $D$~\cite[§18.4.4]{boneh}~\cite{protocols}. La única defensa es encarecer cada intento, y la tabla~\ref{tab:alternativas} resume las opciones. La sal de 128 bits anula las tablas precalculadas pero no el diccionario directo. Se descartó además una sal secreta (\emph{pepper}), porque en un gestor local no tendría dónde guardarse aparte del propio archivo.
+
+\begin{table}[h]
+\centering\small
+\caption{Alternativas consideradas para la derivación de clave y el cifrado autenticado.}
+\label{tab:alternativas}
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Opción & Ventaja & Por qué se eligió o se descartó \\
+\midrule
+PBKDF2 & Estándar y disponible en todas partes & Itera una PRF que ocupa poca área de chip, así que se paraleliza barato en GPU o ASIC. Descartada \\
+scrypt & Exige memoria, el recurso escaso del hardware paralelo & Sus accesos dependen de la contraseña y filtran por canal lateral de caché. Descartada \\
+\textbf{Argon2id} & Memoria configurable, accesos independientes de los datos en la primera mitad de la primera pasada y dependientes en el resto & Variante recomendada por RFC~9106~\cite{rfc9106}. \textbf{Elegida} \\
+\midrule
+AES-256-GCM & Estándar NIST, muy rápido con instrucciones AES-NI & Sin AES-NI las implementaciones en software pueden filtrar por tiempo. Queda disponible como \code{aead\_id} alternativo \\
+\textbf{ChaCha20-Poly1305} & RFC~8439~\cite{rfc8439}, de tiempo constante en software en cualquier procesador & Mismo nonce de 96 bits que GCM, suficiente con una DEK por guardado. \textbf{Elegido} \\
+XChaCha20-Poly1305 & Nonce de 192 bits, aleatorio sin límite práctico & No es RFC ni está en \code{cryptography}. Descartado \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Parámetros de Argon2id.} RFC~9106 §4 recomienda dos configuraciones, una de 2 GiB con 1 pasada y otra de 64 MiB con 3 pasadas, ambas con 4 carriles. Son C y A, y B es una intermedia de 256 MiB. Se prioriza la memoria sobre las pasadas porque la memoria es lo que limita cuántos intentos corre a la vez un atacante con hardware paralelo. El equilibrio entre la espera del usuario y la resistencia se fijó con una regla explícita: la configuración de mayor memoria cuyo desbloqueo no supere 1 s en el equipo que ejecuta \pvlt. La sección~\ref{sec:experimentos} la aplica al equipo de referencia, y el script \code{bench.calibrate} la aplica a cualquier otro.
+
+\textbf{Distinguir una contraseña incorrecta de un archivo dañado.} El archivo termina en un SHA-256 sin clave y no en un MAC. Un MAC necesitaría una clave derivada de la contraseña, así que no permitiría separar un fallo de disco de una contraseña equivocada sin antes ejecutar Argon2id. El resumen sin clave detecta los errores accidentales y permite ofrecer el respaldo, mientras la integridad frente a un atacante queda a cargo de las etiquetas AEAD, que sí dependen de la clave.
+
+\textbf{Biblioteca.} Se usa solo \code{cryptography} (pyca). PyNaCl fija el paralelismo de Argon2id en 1, y \code{argon2-cffi} añadiría una segunda dependencia criptográfica y no permite derivar en un búfer propio. \code{cryptography} ofrece las dos primitivas, acepta el secreto y el dato asociado que exigen los vectores de RFC~9106 y deriva directamente en un \code{bytearray} que luego se sobrescribe con ceros.
+
 \section{Arquitectura e implementación}\label{sec:arquitectura}
 
 El código está en Python 3.12 y usa una sola biblioteca criptográfica, \code{cryptography} 50.0.2 sobre OpenSSL 4.0.3, que ofrece Argon2id y ChaCha20-Poly1305~\cite{pyca}. Se divide en cuatro capas con dependencias en un solo sentido (figura~\ref{fig:capas}), y una prueba de humo verifica que ninguna capa importa a otra prohibida.
@@ -220,9 +249,9 @@ El código está en Python 3.12 y usa una sola biblioteca criptográfica, \code{
 
 \textbf{\code{vault/}} es la única capa que sostiene la KEK. Toda operación pasa por una puerta que primero aplica el bloqueo por inactividad y luego cuenta como actividad, y todo cambio se escribe en disco antes de hacerse visible en memoria, así que un guardado fallido deja la sesión y el archivo como estaban. Las excepciones son propias por categoría de fallo y sus mensajes no contienen texto secreto. Los objetos con datos sensibles redefinen \code{repr} para no mostrarlos en trazas.
 
-\textbf{\code{web/}} aplica las defensas del Entregable 1. Al arrancar genera un token de 256 bits que viaja en el fragmento de la URL, nunca enviado al servidor, y se canjea una sola vez por una cookie \code{HttpOnly} y \code{SameSite=Strict}. Todas las rutas de la API salvo el canje exigen además un token CSRF en una cabecera propia. Se rechazan \code{Host} distinto de \code{127.0.0.1} o \code{localhost} con el puerto propio, contra el \emph{DNS rebinding}, y cualquier \code{Origin} ajeno, sin CORS, siguiendo las recomendaciones de OWASP~\cite{owasp}. Las respuestas llevan una CSP con las directivas \code{default-src 'self'} y \code{frame-ancestors 'none'}, además de \code{Cache-Control: no-store} y \code{X-Frame-Options: DENY}. El frontend no tiene código ni estilos en línea y escribe los datos del usuario solo con \code{textContent}. La lista no incluye contraseñas, que se piden una a una. El portapapeles se vacía a los 20 s escribiendo una cadena vacía. El log de acceso de uvicorn está desactivado y los errores tienen mensajes fijos, sin los valores enviados. Un hilo borra la KEK al vencer la inactividad aunque no lleguen peticiones.
+\textbf{\code{web/}} aplica las defensas del Entregable 1. Al arrancar genera un token de 256 bits que viaja en el fragmento de la URL, nunca enviado al servidor, y se canjea una sola vez por una cookie \code{HttpOnly} y \code{SameSite=Strict}. Todas las rutas de la API salvo el canje exigen además un token CSRF en una cabecera propia. Se rechazan \code{Host} distinto de \code{127.0.0.1} o \code{localhost} con el puerto propio, contra el \emph{DNS rebinding}, y cualquier \code{Origin} ajeno, sin CORS, siguiendo las recomendaciones de OWASP~\cite{owasp}. Las respuestas llevan una CSP con las directivas \code{default-src 'self'} y \code{frame-ancestors 'none'}, además de \code{Cache-Control: no-store} y \code{X-Frame-Options: DENY}. El frontend no tiene código ni estilos en línea y escribe los datos del usuario solo con \code{textContent}. La lista no incluye contraseñas, que se piden una a una, y los campos con datos de la bóveda desactivan el corrector ortográfico del navegador, que en algunos navegadores envía el texto a un servicio externo. El portapapeles se vacía a los 20 s escribiendo una cadena vacía. El navegador solo permite esa escritura con la pestaña enfocada, así que si en ese momento el usuario está en otra ventana, la página muestra un aviso fijo y repite el vaciado en cuanto vuelve. El log de acceso de uvicorn está desactivado y los errores tienen mensajes fijos, sin los valores enviados. Un hilo borra la KEK al vencer la inactividad aunque no lleguen peticiones.
 
-\textbf{Plataforma.} La referencia es Linux en un contenedor Docker con Python 3.12, un usuario sin privilegios y el volumen de datos con permisos 0700. El contenedor solo se publica en \code{127.0.0.1:8765}. Las dependencias están fijadas con sus hashes mediante \code{pip-tools}, y la imagen las instala con \code{-{}-require-hashes}. Fuera de Docker el comando \pvlt{} escucha en \code{127.0.0.1} con un puerto aleatorio y abre el navegador.
+\textbf{Plataforma.} La referencia es Linux en un contenedor Docker con Python 3.12, un usuario sin privilegios y el volumen de datos con permisos 0700. El contenedor solo se publica en \code{127.0.0.1:8765}. Las dependencias están fijadas con sus hashes mediante \code{pip-tools}, y la imagen las instala con la opción \code{-{}-require-hashes} de \code{pip}, que rechaza cualquier paquete alterado. Fuera de Docker el comando \pvlt{} escucha en \code{127.0.0.1} con un puerto aleatorio y abre el navegador.
 
 \section{Desviaciones y concreciones respecto al Entregable 1}\label{sec:desviaciones}
 
@@ -247,6 +276,8 @@ En la importación, un conflicto sin decisión se omite, y toda la importación 
 El CSRF se exige también en las lecturas y el token se guarda en \code{sessionStorage} & Las lecturas devuelven contraseñas, y las cookies no distinguen puertos, así que otro servidor local podría recibir la cookie pero no el token \\
 Exportar e importar desde la web usan un nombre de archivo de la carpeta de la bóveda & Evita transferir archivos por el navegador y escribir temporales fuera del guardado atómico \\
 Un CLI mínimo con \code{getpass} que pide también sitio, usuario y notas por teclado & El diseño lo preveía para pruebas. La regla de no registrar secretos alcanza a todos los datos de las entradas, no solo a las contraseñas \\
+Si el portapapeles no puede vaciarse por falta de foco, el aviso queda fijo y el vaciado se repite al volver a la pestaña & El diseño suponía que la escritura siempre se permite. El navegador la rechaza sin foco, que es el caso habitual al pegar en otra ventana \\
+Al agregar o editar se rechaza un sitio vacío o de solo espacios & Se vería como una fila en blanco. Al abrir no se aplica, para no cambiar las reglas del formato \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -255,7 +286,7 @@ Durante un tiempo de la implementación el comando \pvlt{} apuntaba al CLI. En l
 
 \section{Pruebas}\label{sec:pruebas}
 
-Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde unos tres minutos. Son 667 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 186 de la capa web, 58 del CLI, 11 de los experimentos y el resto de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
+Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde pocos minutos. Son 672 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 189 de la capa web, 58 del CLI, 13 de los experimentos y la calibración y el resto de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
 
 \begin{table}[h]
 \centering\small
@@ -276,7 +307,7 @@ T8 & La exportación no contiene texto claro y solo se importa con su contraseñ
 T9 & Con el servidor real como subproceso, la contraseña sintética no aparece en la salida ni los registros, en los archivos del directorio, en los argumentos ni el entorno del proceso, ni en ninguna URL \\
 T10 & Vectores de RFC 8439 y RFC 9106 y casos negativos de las primitivas \\
 T11 & 10\,000 contraseñas por combinación de clases: longitud, presencia de cada clase y uniformidad con $\chi^2$ dentro de cada clase y, con longitud 128, sobre todo el alfabeto \\
-T12 & En Chromium con Playwright, el portapapeles queda vacío tras el plazo, y una segunda copia reinicia el temporizador \\
+T12 & En Chromium con Playwright, el portapapeles queda vacío tras el plazo, una segunda copia reinicia el temporizador y, si el vaciado falla por falta de foco, se avisa y se repite al volver a la pestaña \\
 T13 & Por HTTP sobre cada ruta y en el navegador: sin cookie 401, sin CSRF o con Host u Origin ajenos 403, notas con HTML mostradas como texto y carga en un \emph{iframe} bloqueada \\
 \bottomrule
 \end{tabularx}
@@ -285,6 +316,8 @@ T13 & Por HTTP sobre cada ruta y en el navegador: sin cookie 401, sin CSRF o con
 T11 merece un comentario. El muestreo por rechazo hace que, en contraseñas cortas, las clases pequeñas aparezcan algo más de lo que les correspondería por tamaño, porque las candidatas a las que les falta una clase son más frecuentes cuanto más pequeña es esa clase. Dentro de cada clase la distribución sigue siendo exactamente uniforme, que es lo que la prueba verifica, y sobre el alfabeto completo el efecto desaparece con longitud 128.
 
 El guion \code{scripts/demo.py} recorre los mismos escenarios en vivo, con 50 comprobaciones explícitas, y una prueba verifica que termina sin fallos y sin mostrar ningún secreto.
+
+Además, la interfaz web se recorrió a mano en un navegador real sobre el contenedor de referencia, con datos sintéticos: crear con contraseñas cortas y distintas, todas las operaciones sobre entradas, notas con HTML, búsqueda, generador, bloqueo manual y por inactividad, cambio de contraseña, exportación con nombres hostiles, importación con cada decisión de conflicto, restauración del respaldo, aviso de retroceso, 500 entradas y pantalla de móvil. El recorrido encontró dos fallos que las pruebas automáticas no veían, porque en ellas el navegador tiene siempre el foco y la página se abre una sola vez. El primero era que el portapapeles no se vaciaba si el usuario había cambiado de ventana. El segundo, que pegar el enlace de un \pvlt{} reiniciado en la misma pestaña no recargaba la página. Ambos se corrigieron y tienen ahora su prueba en Chromium. El recorrido dejó también mejoras de uso: orden alfabético de la lista, fechas legibles, rechazo de sitios en blanco y una vista adaptada a pantallas estrechas.
 
 \section{Experimentos}\label{sec:experimentos}
 
@@ -378,23 +411,28 @@ Frente a los 422 ms del Argon2id de B, abrir y guardar no pesan. Esto valida la 
 
 \subsection{E3: tamaño del archivo}
 
-\begin{table}[h]
-\centering\small
-\caption{E3: tamaño del archivo frente al JSON sin cifrar.}
-\label{tab:e3}
-\begin{tabular}{@{}rrrrr@{}}
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.6\linewidth}
+\includegraphics[width=\linewidth]{../../bench/results/e3_tamano.png}
+\end{minipage}\hfill
+\begin{minipage}{0.37\linewidth}\small
+\begin{tabular}{@{}rrr@{}}
 \toprule
-Entradas & JSON & Relleno & Archivo & Archivo/JSON \\
+Entradas & Archivo & Archivo/JSON \\
 \midrule
-0 & 142 B & 3\,954 B & 4\,279 B & 30,1 \\
-10 & 2\,921 B & 1\,175 B & 4\,279 B & 1,46 \\
-100 & 27\,941 B & 731 B & 28\,855 B & 1,033 \\
-500 & 139\,141 B & 123 B & 139\,447 B & 1,002 \\
+0 & 4\,279 B & 30,1 \\
+10 & 4\,279 B & 1,46 \\
+100 & 28\,855 B & 1,033 \\
+500 & 139\,447 B & 1,002 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{minipage}
+\caption{E3: tamaño del archivo frente al JSON sin cifrar, de 0 a 500 entradas.}
+\label{fig:e3}
+\end{figure}
 
-La parte fija ocupa 183 bytes y el resto es el JSON más el relleno hasta el siguiente múltiplo de 4096 (tabla~\ref{tab:e3}). Por debajo de unas 14 entradas el archivo mide siempre 4\,279 bytes, así que su tamaño no distingue una bóveda vacía de una con una docena de entradas. Desde 100 entradas el archivo ocupa como mucho un 3\,\% más que el JSON. El relleno cumple su función de revelar solo un rango, y su costo es despreciable para bóvedas de este tamaño.
+La parte fija ocupa 183 bytes y el resto es el JSON más el relleno hasta el siguiente múltiplo de 4096 (figura~\ref{fig:e3}). Por debajo de unas 14 entradas el archivo mide siempre 4\,279 bytes, así que su tamaño no distingue una bóveda vacía de una con una docena de entradas. Desde 100 entradas el archivo ocupa como mucho un 3\,\% más que el JSON. El relleno cumple su función de revelar solo un rango, y su costo es despreciable para bóvedas de este tamaño.
 
 \section{Límites de seguridad y limitaciones}\label{sec:limitaciones}
 
@@ -406,9 +444,9 @@ Cumplir el enunciado no certifica \pvlt{} para uso real. Los resultados anterior
 \item \textbf{Borrado de memoria como esfuerzo razonable.} La KEK se sobrescribe con ceros, pero las bibliotecas guardan copias internas y el contenido descifrado vive en cadenas inmutables de Python y de JavaScript que no pueden borrarse. Por eso los volcados de memoria quedan fuera del modelo.
 \item \textbf{Ventana en el cambio de contraseña.} Entre el guardado y la reescritura del respaldo hay un instante en que el \code{.bak} todavía abre con la contraseña anterior. Si el proceso muere justo ahí, el respaldo sigue abriéndose con ella hasta el siguiente guardado.
 \item \textbf{Token en los argumentos del navegador.} Fuera de Docker, mientras el sistema lanza el navegador, la URL con el token aparece en los argumentos de ese proceso y un usuario local (A4) podría leerla. Se mitiga porque el token sirve una sola vez: si otro lo canjeara antes, la página del usuario mostraría que el enlace ya se usó.
-\item \textbf{Portapapeles.} El borrado a los 20 s no ocurre si se cierra la pestaña antes, y también borra lo que el usuario haya copiado entretanto. Es una mitigación parcial, y la interfaz lo advierte.
+\item \textbf{Portapapeles.} El borrado a los 20 s no ocurre si se cierra la pestaña antes, y se retrasa hasta que el usuario vuelve a ella si estaba en otra ventana, porque el navegador no deja escribir en el portapapeles sin el foco. También borra lo que el usuario haya copiado entretanto. Es una mitigación parcial, y la interfaz lo advierte.
 \item \textbf{Retroceso.} Una copia antigua válida de la bóveda se abre sin error. El contador de generación solo permite advertirlo cuando el respaldo es más reciente, porque no existe un estado externo confiable contra el cual comparar.
-\item \textbf{Dependencia del equipo.} La elección de B se hizo en el equipo de referencia. En un equipo más lento B puede superar 1 s, y en uno más rápido convendría una configuración mayor. El formato guarda los parámetros en la cabecera, así que cambiarlos no rompe bóvedas existentes.
+\item \textbf{Dependencia del equipo.} La elección de B se hizo en el equipo de referencia. En un equipo más lento B puede superar 1 s, y en uno más rápido convendría una configuración mayor. Para eso \code{python -m bench.calibrate} mide A, B y C en el equipo donde se ejecuta y recomienda con la misma regla la configuración que se elige al crear la bóveda. El formato guarda los parámetros en la cabecera, así que cambiarlos no rompe bóvedas existentes.
 \item \textbf{El navegador puede guardar la contraseña maestra.} El campo usa \code{autocomplete="new-password"} y la interfaz recomienda rechazar el guardado, pero algunos navegadores lo ofrecen igual.
 \item \textbf{Plataformas.} Las pruebas de fallo y las mediciones se hicieron en Linux dentro de Docker, con la semántica POSIX de \code{fsync} y \code{os.replace}. Windows y macOS se consideran compatibles, pero no se evaluaron como plataformas de referencia.
 \end{itemize}
@@ -419,7 +457,7 @@ Cumplir el enunciado no certifica \pvlt{} para uso real. Los resultados anterior
 
 Los experimentos confirmaron los supuestos que el diseño dejó abiertos. Los carriles de Argon2id corren en paralelo, el pico de memoria coincide con el parámetro elegido y la configuración B, de 256 MiB, desbloquea en 0,42 s mientras impone a un atacante unas 1\,700 horas de este equipo por cada diccionario del tamaño de RockYou. Abrir y guardar cuestan milisegundos frente a ese costo, y el relleno solo deja ver un rango del tamaño de la bóveda.
 
-Las limitaciones que quedan son las propias de una aplicación local escrita en un lenguaje con memoria administrada, más algunas ventanas pequeñas y documentadas. Ninguna contradice el modelo de adversario propuesto. Como trabajo futuro quedan medir en hardware paralelo el costo real de un atacante con GPU, ajustar los parámetros de Argon2id al equipo del usuario en la primera ejecución y evaluar Windows y macOS como plataformas de referencia.
+Las limitaciones que quedan son las propias de una aplicación local escrita en un lenguaje con memoria administrada, más algunas ventanas pequeñas y documentadas. Ninguna contradice el modelo de adversario propuesto. Como trabajo futuro quedan medir en hardware paralelo el costo real de un atacante con GPU, integrar en la creación de la bóveda la calibración de Argon2id que hoy se ejecuta aparte y evaluar Windows y macOS como plataformas de referencia.
 
 \begin{thebibliography}{9}\small
 \setlength{\itemsep}{1pt}
