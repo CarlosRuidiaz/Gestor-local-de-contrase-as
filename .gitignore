@@ -33,8 +33,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Material del docente. No se redistribuye, cada integrante lo copia a mano (ver docs/referencias/README.md)
-docs/referencias/*.pdf
+# Material del docente. No se redistribuye
+docs/referencias/
 
 # Auxiliares de LaTeX del informe (el PDF sí se versiona)
 docs/informe/*.aux
