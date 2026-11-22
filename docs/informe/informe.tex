@@ -68,7 +68,7 @@
 
 \begin{abstract}
 \noindent
-Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 672 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 1\,700 horas de este equipo para recorrer un diccionario del tamaño de RockYou.
+Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 672 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 4\,100 horas de núcleo para recorrer un diccionario del tamaño de RockYou.
 \end{abstract}
 
 \section{Introducción y alcance}
@@ -223,7 +223,7 @@ PBKDF2 & Estándar y disponible en todas partes & Itera una PRF que ocupa poca �
 scrypt & Exige memoria, el recurso escaso del hardware paralelo & Sus accesos dependen de la contraseña y filtran por canal lateral de caché. Descartada \\
 \textbf{Argon2id} & Memoria configurable, accesos independientes de los datos en la primera mitad de la primera pasada y dependientes en el resto & Variante recomendada por RFC~9106~\cite{rfc9106}. \textbf{Elegida} \\
 \midrule
-AES-256-GCM & Estándar NIST, muy rápido con instrucciones AES-NI & Sin AES-NI las implementaciones en software pueden filtrar por tiempo. Queda disponible como \code{aead\_id} alternativo \\
+AES-256-GCM & Estándar NIST, muy rápido con instrucciones AES-NI & Sin AES-NI las implementaciones en software pueden filtrar por tiempo. El campo \code{aead\_id} permitiría añadirlo en otra versión del formato \\
 \textbf{ChaCha20-Poly1305} & RFC~8439~\cite{rfc8439}, de tiempo constante en software en cualquier procesador & Mismo nonce de 96 bits que GCM, suficiente con una DEK por guardado. \textbf{Elegido} \\
 XChaCha20-Poly1305 & Nonce de 192 bits, aleatorio sin límite práctico & No es RFC ni está en \code{cryptography}. Descartado \\
 \bottomrule
@@ -378,7 +378,7 @@ El pico de memoria menos la base del intérprete, unos 32 MiB, coincide con la m
 
 \textbf{Carriles.} El Entregable 1 advertía que, si OpenSSL no procesaba los carriles en paralelo, el atacante tendría una ventaja de hasta $p$ veces en tiempo. E1 lo comprobó variando solo $p$ sobre B (figura~\ref{fig:e1}b). Con 1, 2 y 4 carriles el desbloqueo baja de 0,840 a 0,528 y 0,414 s, mientras el tiempo de CPU se mantiene entre 0,83 y 0,99 s, y el cociente entre CPU y pared sube de 1,00 a 1,57 y 2,40. Como \code{process\_time} suma la CPU de todos los hilos, un cociente mayor que 1 prueba que los carriles trabajan a la vez. El defensor aprovecha entonces el paralelismo igual que lo haría un atacante, aunque con 4 carriles la ganancia no llega a 4 veces.
 
-\textbf{Costo de diccionario.} Si un intento cuesta $t$ segundos, recorrer un diccionario $D$ cuesta del orden de $t\cdot|D|$~\cite[§18.4.4]{boneh}. Con B y el $t$ medido, la tabla~\ref{tab:diccionario} da el costo en tiempo de pared de este equipo y en horas de núcleo, calculadas con el tiempo de CPU. El $t$ de E1 incluye las comprobaciones 1, 2 y 4, que el atacante podría omitir, pero E2 muestra que pesan unos milisegundos frente a los 422 ms de Argon2id, así que la estimación apenas cambia.
+\textbf{Costo de diccionario.} Si un intento cuesta $t$ segundos, recorrer un diccionario $D$ cuesta del orden de $t\cdot|D|$~\cite[§18.4.4]{boneh}. Con B y el $t$ medido, la tabla~\ref{tab:diccionario} da el costo probando un intento a la vez y en horas de núcleo, calculadas con el tiempo de CPU. El $t$ de E1 incluye las comprobaciones 1, 2 y 4, que el atacante podría omitir, pero E2 muestra que pesan unos milisegundos frente a los 422 ms de Argon2id, así que la estimación apenas cambia.
 
 \begin{table}[h]
 \centering\small
@@ -386,7 +386,7 @@ El pico de memoria menos la base del intérprete, unos 32 MiB, coincide con la m
 \label{tab:diccionario}
 \begin{tabular}{@{}lrrr@{}}
 \toprule
-Diccionario & $|D|$ & Pared en este equipo & Horas de núcleo \\
+Diccionario & $|D|$ & Un intento a la vez & Horas de núcleo \\
 \midrule
 Las $10^4$ contraseñas más comunes & $10^4$ & 1,2 h & 2,9 \\
 RockYou & $1{,}43\cdot 10^7$ & 1\,683 h (70 días) & 4\,091 \\
@@ -396,7 +396,7 @@ Contraseña aleatoria de 40 bits & $2^{40}$ & 14\,727 años & $3{,}1\cdot 10^8$ 
 \end{tabular}
 \end{table}
 
-Estas cifras describen a un atacante con un equipo como el de referencia. Uno con muchos núcleos o GPU divide el tiempo de pared entre el número de intentos que corre a la vez, pero cada intento le exige 256 MiB de memoria, que es justo el recurso escaso del hardware paralelo~\cite{rfc9106}. Una tarjeta con 24 GB de memoria, por ejemplo, no puede sostener más de unas 90 instancias simultáneas. Argon2id no vuelve imposible el ataque, lo encarece. Un atacante con cien equipos como el de referencia recorrería RockYou en menos de un día, así que una contraseña que esté en un diccionario conocido no queda protegida, y el modelo la deja fuera. En cambio, una contraseña aleatoria de 40 bits le costaría a esos mismos cien equipos unos 147 años, y cada bit adicional duplica la cifra. La seguridad final depende entonces de la entropía de la contraseña maestra, y Argon2id multiplica el costo de cada candidata por unos 400 ms de cómputo y 256 MiB de memoria.
+Un intento ocupa unos 2,4 de los 8 hilos del equipo, así que probar en serie no es lo mejor que puede hacer un atacante con él. Si reparte los intentos entre todos los núcleos, y ocho instancias de 256 MiB caben en su memoria, el costo lo dan las horas de núcleo: RockYou le llevaría entre unas 510 h con los 8 hilos y unas 1\,020 h con los 4 núcleos físicos, porque los dos hilos de un núcleo no duplican su rendimiento. Con GPU o muchos núcleos el costo se divide entre los intentos simultáneos, pero cada uno exige 256 MiB de memoria, el recurso escaso del hardware paralelo~\cite{rfc9106}. Una tarjeta con 24 GB, por ejemplo, no sostiene más de unas 90 instancias. Argon2id no vuelve imposible el ataque, lo encarece. Cien equipos como el de referencia recorrerían RockYou en unas 5 a 10 horas, así que una contraseña que esté en un diccionario conocido no queda protegida, y el modelo la deja fuera. En cambio, una contraseña aleatoria de 40 bits les costaría entre unos 45 y 90 años, y cada bit adicional duplica la cifra. La seguridad final depende entonces de la entropía de la contraseña maestra, y Argon2id multiplica el costo de cada candidata por algo más de un segundo de núcleo y 256 MiB de memoria.
 
 \subsection{E2: abrir y guardar sin Argon2id}
 
@@ -473,7 +473,7 @@ Cumplir el enunciado no certifica \pvlt{} para uso real. Los resultados anterior
 
 \pvlt{} implementa el diseño del Entregable 1 sin desviaciones de formato ni de protocolo. La jerarquía KEK y DEK con una DEK nueva por guardado resolvió la unicidad de nonces sin contadores persistentes, y la cabecera como dato asociado con etiquetas de dominio hizo que cualquier alteración del archivo se rechace, como verifican las pruebas de manipulación sobre cada campo. Validar los parámetros antes de Argon2id y separar las cuatro comprobaciones permitió dar a cada fallo un mensaje propio sin escribir nunca en disco. El guardado atómico con respaldo resistió una caída tras cada uno de sus pasos.
 
-Los experimentos confirmaron los supuestos que el diseño dejó abiertos. Los carriles de Argon2id corren en paralelo, el pico de memoria coincide con el parámetro elegido y la configuración B, de 256 MiB, desbloquea en 0,42 s mientras impone a un atacante unas 1\,700 horas de este equipo por cada diccionario del tamaño de RockYou. Abrir y guardar cuestan milisegundos frente a ese costo, y el relleno solo deja ver un rango del tamaño de la bóveda.
+Los experimentos confirmaron los supuestos que el diseño dejó abiertos. Los carriles de Argon2id corren en paralelo, el pico de memoria coincide con el parámetro elegido y la configuración B, de 256 MiB, desbloquea en 0,42 s mientras impone a un atacante unas 4\,100 horas de núcleo, entre tres y seis semanas de este mismo equipo a pleno uso, por cada diccionario del tamaño de RockYou. Abrir y guardar cuestan milisegundos frente a ese costo, y el relleno solo deja ver un rango del tamaño de la bóveda.
 
 Las limitaciones que quedan son las propias de una aplicación local escrita en un lenguaje con memoria administrada, más algunas ventanas pequeñas y documentadas. Ninguna contradice el modelo de adversario propuesto. Como trabajo futuro quedan medir en hardware paralelo el costo real de un atacante con GPU, integrar en la creación de la bóveda la calibración de Argon2id que hoy se ejecuta aparte y evaluar Windows y macOS como plataformas de referencia.
 
