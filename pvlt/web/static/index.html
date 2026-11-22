@@ -74,7 +74,7 @@
 
     <section id="view-main" hidden>
       <div class="toolbar">
-        <input id="search" type="search" placeholder="Buscar por sitio o usuario" autocomplete="off" aria-label="Buscar">
+        <input id="search" type="search" placeholder="Buscar por sitio o usuario" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Buscar">
         <button id="new-entry-button" type="button">Nueva entrada</button>
         <button id="generator-button" type="button" class="secondary">Generador</button>
         <button id="change-button" type="button" class="secondary">Contraseña maestra</button>
@@ -118,21 +118,21 @@
             <h2 id="entry-title">Nueva entrada</h2>
             <form id="entry-form" method="post" action="/">
               <label>Sitio
-                <input id="entry-site" type="text" autocomplete="off" required maxlength="256">
+                <input id="entry-site" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" required maxlength="256">
               </label>
               <label>Usuario
-                <input id="entry-username" type="text" autocomplete="off" maxlength="256">
+                <input id="entry-username" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" maxlength="256">
               </label>
               <label>Contraseña
                 <span class="row">
-                  <input id="entry-password" type="password" autocomplete="new-password" maxlength="1024">
+                  <input id="entry-password" type="password" autocomplete="new-password" spellcheck="false" autocapitalize="off" autocorrect="off" maxlength="1024">
                   <button id="entry-toggle" type="button" class="secondary">Mostrar</button>
                   <button id="entry-generate" type="button" class="secondary">Generar</button>
                 </span>
               </label>
               <p id="entry-password-hint" class="hint" hidden>Déjala vacía para conservar la actual.</p>
               <label>Notas
-                <textarea id="entry-notes" rows="4" maxlength="8192"></textarea>
+                <textarea id="entry-notes" rows="4" spellcheck="false" autocapitalize="off" autocorrect="off" maxlength="8192"></textarea>
               </label>
               <div class="actions">
                 <button type="submit">Guardar</button>
@@ -182,7 +182,7 @@
             <p class="hint">El archivo queda cifrado con su propia contraseña, en la carpeta de la bóveda.</p>
             <form id="export-form" method="post" action="/">
               <label>Nombre del archivo (termina en .pvlt)
-                <input id="export-filename" type="text" autocomplete="off" required value="exportacion.pvlt">
+                <input id="export-filename" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" required value="exportacion.pvlt">
               </label>
               <label>Contraseña de exportación (8 a 1024 caracteres)
                 <input id="export-password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024">

@@ -1,4 +1,4 @@
-"""Verify the library assumptions made by the design (docs/diseno.md, docs/desviaciones.md).
+"""Verify the library assumptions made by the design (docs/diseno.md).
 
 Prints one line per check and exits with status 1 if a hard requirement fails.
 Uses only public synthetic data (RFC test vectors). Nothing secret is printed.
@@ -122,7 +122,10 @@ def main() -> int:
     check_chacha_rfc8439()
     check_argon2id()
     if HARD_FAILURES:
-        print(f"\nRequisitos incumplidos: {len(HARD_FAILURES)}. Registrar en docs/desviaciones.md.")
+        print(
+            f"\nRequisitos incumplidos: {len(HARD_FAILURES)}. "
+            "Hay que documentarlos como desviación del diseño."
+        )
         return 1
     print("\nTodos los requisitos duros se cumplen.")
     return 0

@@ -9,7 +9,7 @@
 
 (() => {
   const CLIPBOARD_SECONDS = 20;
-  const POLL_MS = 10000;
+  const POLL_MS = 5000;
   const CSRF_KEY = "pvlt.csrf";
 
   const CONFLICTS = { id: "mismo identificador", site_username: "mismo sitio y usuario" };
@@ -26,10 +26,33 @@
     editing: null,      // id de la entrada en edición, o null si es nueva
     preview: null,      // vista previa de importación
     clipTimer: null,
+    clipPending: false, // el vaciado falló y se reintenta al volver a la pestaña
     noticeTimer: null,
   };
 
   const $ = (id) => document.getElementById(id);
+
+  // Error de la propia página (no del servidor), con un mensaje para el usuario.
+  class UiError extends Error {}
+
+  // --- Formato ------------------------------------------------------------------
+
+  const DATE_FORMAT = new Intl.DateTimeFormat("es", { dateStyle: "short", timeStyle: "short" });
+  const DATE_FORMAT_LONG = new Intl.DateTimeFormat("es", { dateStyle: "long", timeStyle: "medium" });
+  const BITS_FORMAT = new Intl.NumberFormat("es", { maximumFractionDigits: 1 });
+
+  function formatDate(iso, format) {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? iso : format.format(date);
+  }
+
+  function plural(n, one, many) {
+    return `${n} ${n === 1 ? one : many}`;
+  }
+
+  function bits(value) {
+    return `${BITS_FORMAT.format(value)} bits (cota superior)`;
+  }
 
   // --- Comunicación con el servidor ---------------------------------------------
 
@@ -103,7 +126,11 @@
       showNoSession(error.message);
       return;
     }
-    showError(error instanceof ApiError ? error.message : "No se pudo contactar con pvlt.");
+    if (error instanceof ApiError || error instanceof UiError) {
+      showError(error.message);
+      return;
+    }
+    showError("No se pudo contactar con pvlt.");
   }
 
   // Ejecuta una acción y traduce cualquier error a un mensaje.
@@ -129,10 +156,15 @@
   function showPanel(id) {
     for (const panel of PANELS) $(panel).hidden = panel !== id;
     $("panel-empty").hidden = id !== null;
+    // En pantallas estrechas el panel queda encima de la lista: se lleva a la vista.
+    if (id && window.matchMedia("(max-width: 800px)").matches) {
+      $("panel").scrollIntoView({ block: "start" });
+    }
   }
 
   function showNoSession(reason) {
     clearSecrets();
+    $("autolock").textContent = "";
     $("no-session-reason").textContent = reason || "";
     $("recovery").hidden = true;
     showView("view-no-session");
@@ -195,7 +227,8 @@
     const temporaries = $("temporaries-warning");
     temporaries.hidden = status.removed_temporaries === 0;
     temporaries.textContent = status.removed_temporaries
-      ? `Aviso: se eliminaron ${status.removed_temporaries} temporales de un guardado interrumpido.`
+      ? `Aviso: se ${status.removed_temporaries === 1 ? "eliminó" : "eliminaron"} ` +
+        `${plural(status.removed_temporaries, "temporal", "temporales")} de un guardado interrumpido.`
       : "";
 
     $("recovery").hidden = rollback.hidden && damaged.hidden && temporaries.hidden;
@@ -257,9 +290,14 @@
     return b;
   }
 
+  // Orden alfabético por sitio y luego por usuario, sin distinguir mayúsculas ni tildes.
+  const COLLATOR = new Intl.Collator("es", { sensitivity: "base", numeric: true });
+
   async function loadEntries() {
     const data = await api("GET", "/api/entries");
-    state.entries = data.entries;
+    state.entries = data.entries.slice().sort(
+      (a, b) => COLLATOR.compare(a.site, b.site) || COLLATOR.compare(a.username, b.username),
+    );
     renderEntries();
   }
 
@@ -280,13 +318,16 @@
         button("Ver", () => openDetail(entry.id), "secondary"),
         button("Copiar", () => copyPassword(entry.id)),
       );
-      row.append(cell(entry.site), cell(entry.username || "—"), cell(entry.modified), actions);
+      const modified = cell(formatDate(entry.modified, DATE_FORMAT));
+      modified.className = "date";
+      row.append(cell(entry.site), cell(entry.username || "—"), modified, actions);
       body.append(row);
       shown += 1;
     }
     $("entries-empty").hidden = shown !== 0;
     $("entries-count").textContent =
-      `${shown} de ${state.entries.length} entradas` + (query ? " (filtradas)" : "");
+      `${shown} de ${plural(state.entries.length, "entrada", "entradas")}` +
+      (query ? " (filtradas)" : "");
   }
 
   // --- Detalle ------------------------------------------------------------------
@@ -304,8 +345,8 @@
     $("detail-site").textContent = entry.site;
     $("detail-username").textContent = entry.username || "—";
     $("detail-notes").textContent = entry.notes;
-    $("detail-created").textContent = entry.created;
-    $("detail-modified").textContent = entry.modified;
+    $("detail-created").textContent = formatDate(entry.created, DATE_FORMAT_LONG);
+    $("detail-modified").textContent = formatDate(entry.modified, DATE_FORMAT_LONG);
     hidePassword();
     showPanel("panel-detail");
   }
@@ -322,16 +363,41 @@
     $("detail-show").textContent = "Ocultar";
   }
 
+  const CLIP_PENDING_MESSAGE =
+    "El portapapeles todavía tiene la contraseña: el navegador no deja vaciarlo mientras " +
+    "esta pestaña no tiene el foco. Se vaciará al volver a ella.";
+
+  // Se sobrescribe sin leer antes. El navegador solo lo permite con la pestaña enfocada,
+  // así que si falla se reintenta en cuanto el usuario vuelve. No ocurre si la pestaña
+  // ya se cerró.
+  async function clearClipboard() {
+    try {
+      await navigator.clipboard.writeText("");
+    } catch (_) {
+      state.clipPending = true;
+      showError(CLIP_PENDING_MESSAGE);
+      return;
+    }
+    if (state.clipPending && $("error").textContent === CLIP_PENDING_MESSAGE) showError("");
+    state.clipPending = false;
+    notice("Portapapeles vaciado.");
+  }
+
+  function retryClipboard() {
+    if (state.clipPending && !state.clipTimer && document.hasFocus()) clearClipboard();
+  }
+
   async function writeClipboard(value) {
-    await navigator.clipboard.writeText(value);
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (_) {
+      throw new UiError("No se pudo copiar al portapapeles. Vuelve a pulsar Copiar.");
+    }
     clearTimeout(state.clipTimer);
+    state.clipPending = false;
     state.clipTimer = setTimeout(() => {
       state.clipTimer = null;
-      // Se sobrescribe sin leer antes. No ocurre si la pestaña ya se cerró.
-      navigator.clipboard.writeText("").then(
-        () => notice("Portapapeles vaciado."),
-        () => notice("No se pudo vaciar el portapapeles. Vacíalo a mano."),
-      );
+      clearClipboard();
     }, CLIPBOARD_SECONDS * 1000);
     notice(
       `Contraseña copiada. El portapapeles se vaciará en ${CLIPBOARD_SECONDS} s ` +
@@ -389,6 +455,10 @@
   }
 
   async function saveEntry() {
+    // Los espacios al principio y al final del sitio y del usuario no son parte del dato.
+    $("entry-site").value = $("entry-site").value.trim();
+    $("entry-username").value = $("entry-username").value.trim();
+    if (!$("entry-site").value) throw new UiError("Dato inválido: sitio");
     const body = {
       site: $("entry-site").value,
       username: $("entry-username").value,
@@ -439,7 +509,7 @@
   async function runGenerator() {
     const data = await api("POST", "/api/generate", generatorSettings());
     $("gen-output").textContent = data.password;
-    $("gen-entropy").textContent = `Entropía: ${data.entropy_bits.toFixed(1)} bits (cota superior)`;
+    $("gen-entropy").textContent = `Entropía: ${bits(data.entropy_bits)}`;
     $("gen-copy").hidden = false;
   }
 
@@ -453,7 +523,7 @@
     const data = await api("POST", "/api/generate", settings.generator);
     $("entry-password").value = data.password;
     setPasswordVisible(true);
-    notice(`Contraseña generada: ${data.entropy_bits.toFixed(1)} bits (cota superior).`);
+    notice(`Contraseña generada: ${bits(data.entropy_bits)}.`);
   }
 
   // --- Contraseña maestra, exportación, importación y ajustes -----------------------
@@ -487,7 +557,8 @@
       $("export-password").value = "";
       $("export-confirm").value = "";
     }
-    notice(`Exportadas ${data.entries} entradas a ${data.filename}.`);
+    notice(`${data.entries === 1 ? "Exportada" : "Exportadas"} ` +
+      `${plural(data.entries, "entrada", "entradas")} a ${data.filename}.`);
   }
 
   async function openImport() {
@@ -544,7 +615,8 @@
       rows.append(row);
     }
     $("import-summary").textContent =
-      `El archivo tiene ${data.items.length} entradas, ${data.conflicts} en conflicto.`;
+      `El archivo tiene ${plural(data.items.length, "entrada", "entradas")}, ` +
+      `${data.conflicts} en conflicto.`;
     $("import-preview").hidden = false;
   }
 
@@ -673,6 +745,15 @@
 
   async function boot() {
     bind();
+    // Pegar en esta misma pestaña el enlace de un pvlt reiniciado solo cambia el
+    // fragmento, y el navegador no recarga la página. Se recarga a mano para canjearlo.
+    window.addEventListener("hashchange", () => {
+      if (/^#t=/.test(window.location.hash)) window.location.reload();
+    });
+    window.addEventListener("focus", retryClipboard);
+    document.addEventListener("visibilitychange", retryClipboard);
+    document.addEventListener("pointerdown", retryClipboard);
+    document.addEventListener("keydown", retryClipboard);
     const match = /^#t=([A-Za-z0-9_-]+)$/.exec(window.location.hash);
     // El fragmento se borra antes de nada para que no quede en el historial.
     if (window.location.hash) {

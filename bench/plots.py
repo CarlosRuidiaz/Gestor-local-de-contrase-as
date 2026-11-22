@@ -132,21 +132,36 @@ def plot_e2(results_dir: Path) -> Path:
 
 
 def plot_e3(results_dir: Path) -> Path:
+    # Only the measured points are joined, with straight segments: between two
+    # measurements the file always stays above the JSON (padding only adds bytes).
     rows = read_csv(results_dir / "e3_tamano.csv")
     n = _floats(rows, "entradas")
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.plot(n, [b / 1024 for b in _floats(rows, "json_bytes")], "o-", label="JSON sin cifrar")
-    ax.step(
-        n,
-        [b / 1024 for b in _floats(rows, "archivo_bytes")],
-        "s-",
-        where="post",
-        label="Archivo .pvlt",
-    )
-    ax.set_xlabel("Entradas")
-    ax.set_ylabel("Tamaño (KiB)")
-    ax.set_title("E3: tamaño del archivo frente al JSON")
-    ax.legend()
+    json_kib = [b / 1024 for b in _floats(rows, "json_bytes")]
+    file_kib = [b / 1024 for b in _floats(rows, "archivo_bytes")]
+    fig, (left, right) = plt.subplots(1, 2, figsize=(9, 3.8))
+    left.plot(n, file_kib, "s-", color="#dd8452", label="Archivo .pvlt")
+    left.plot(n, json_kib, "o--", color="#4c72b0", label="JSON sin cifrar")
+    left.set_xlabel("Entradas")
+    left.set_ylabel("Tamaño (KiB)")
+    left.set_title("Tamaño medido")
+    left.legend()
+
+    measured = [(x, f, j) for x, f, j in zip(n, file_kib, json_kib, strict=True) if x > 0]
+    overhead = [100 * (f / j - 1) for _, f, j in measured]
+    right.plot([x for x, _, _ in measured], overhead, "s-", color="#dd8452")
+    right.set_yscale("log")
+    right.set_xlabel("Entradas")
+    right.set_ylabel("Exceso sobre el JSON (%)")
+    right.set_title("Costo del relleno y la parte fija")
+    for x, pct in zip([x for x, _, _ in measured], overhead, strict=True):
+        right.annotate(
+            f"{pct:.1f} %".replace(".", ","),
+            (x, pct),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize="small",
+        )
+    fig.suptitle("E3: tamaño del archivo frente al JSON")
     return _save(fig, results_dir / "e3_tamano.png")
 
 

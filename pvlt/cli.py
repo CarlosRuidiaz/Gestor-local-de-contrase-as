@@ -413,7 +413,7 @@ def translate(exc: BaseException) -> tuple[str, int] | None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pvlt",
+        prog="pvlt-cli",
         description="Gestor local de contraseñas. Las contraseñas se piden siempre por "
         "teclado, nunca como argumento.",
     )

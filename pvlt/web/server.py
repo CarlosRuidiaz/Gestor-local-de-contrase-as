@@ -66,7 +66,7 @@ def _interrupt(signum: int, frame: object) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python -m pvlt.web",
+        prog="pvlt",
         description="Interfaz web local de pvlt. La contraseña maestra se escribe en la página.",
     )
     parser.add_argument(

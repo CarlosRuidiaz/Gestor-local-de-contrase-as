@@ -133,8 +133,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   align-items: start;
 }
 
+.list { overflow-x: auto; }
+/* Con muchas entradas el panel acompaña al desplazamiento de la lista. */
+#panel { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
+  /* En una sola columna el panel va antes de la lista, y sin nada abierto no se muestra. */
+  #panel { order: -1; position: static; max-height: none; }
+  #panel:has(> #panel-empty:not([hidden])) { display: none; }
+}
+
+@media (max-width: 600px) {
+  #entries th:nth-child(3), #entries td.date { display: none; }
 }
 
 table { width: 100%; border-collapse: collapse; background: var(--surface); }
@@ -142,9 +153,11 @@ th, td {
   text-align: left;
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--border);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   vertical-align: top;
 }
+td.date { white-space: nowrap; color: var(--muted); font-size: 0.9rem; }
 th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
 td.row-actions { white-space: nowrap; text-align: right; }
 td.row-actions button { padding: 0.25rem 0.6rem; margin-left: 0.25rem; }

@@ -136,6 +136,67 @@ def test_t12_a_second_copy_restarts_the_timer(page: Page, live_server: LiveServe
     assert clipboard(page) == ""
 
 
+BLOCK_CLEARING = """() => {
+    // The browser refuses clipboard writes while the tab has no focus, which is the
+    // usual case: the user switched to another window to paste.
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    window.__blockClearing = true;
+    navigator.clipboard.writeText = (value) =>
+        value === "" && window.__blockClearing
+            ? Promise.reject(new DOMException("Document is not focused.", "NotAllowedError"))
+            : write(value);
+}"""
+
+
+def test_t12_clearing_is_retried_when_the_user_comes_back(
+    page: Page, live_server: LiveServer
+) -> None:
+    page.clock.install()
+    open_app(page, live_server)
+    create_vault(page)
+    add_entry(page)
+    page.evaluate(BLOCK_CLEARING)
+
+    page.click("#detail-copy")
+    expect(page.locator("#notice")).to_contain_text("se vaciará en 20 s")
+    page.clock.run_for((CLIPBOARD_SECONDS + 1) * 1000)
+    # The failure is not hidden after a few seconds: it stays until it is solved.
+    expect(page.locator("#error")).to_contain_text("todavía tiene la contraseña")
+    page.clock.run_for(30_000)
+    expect(page.locator("#error")).to_contain_text("todavía tiene la contraseña")
+    assert clipboard(page) == ENTRY_PASSWORD
+
+    page.evaluate("window.__blockClearing = false")
+    page.evaluate("window.dispatchEvent(new Event('focus'))")
+    expect(page.locator("#notice")).to_have_text("Portapapeles vaciado.")
+    expect(page.locator("#error")).to_be_hidden()
+    assert clipboard(page) == ""
+
+
+def test_a_failed_copy_says_so(page: Page, live_server: LiveServer) -> None:
+    open_app(page, live_server)
+    create_vault(page)
+    add_entry(page)
+    page.evaluate(
+        "() => { navigator.clipboard.writeText = () => "
+        "Promise.reject(new DOMException('x', 'NotAllowedError')) }"
+    )
+    page.click("#detail-copy")
+    expect(page.locator("#error")).to_have_text(
+        "No se pudo copiar al portapapeles. Vuelve a pulsar Copiar."
+    )
+
+
+def test_a_new_link_pasted_in_the_same_tab_is_used(page: Page, live_server: LiveServer) -> None:
+    """Changing only the fragment does not reload the page, so the page reloads itself."""
+    open_app(page, live_server)
+    visible(page, "#view-create")
+    page.evaluate("window.location.hash = '#t=' + 'A'.repeat(43)")
+    visible(page, "#view-no-session")
+    expect(page.locator("#no-session-reason")).to_contain_text("ya se usó o no es válido")
+    assert "#t=" not in page.url
+
+
 # --- T13 in the browser -------------------------------------------------------------------
 
 
