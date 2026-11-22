@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from bench import e1_argon2, e2_open_save, e3_size, plots
+from bench import calibrate, e1_argon2, e2_open_save, e3_size, plots
 from bench.common import (
     BENCH_PASSWORD,
     read_csv,
@@ -143,3 +143,28 @@ def test_full_quick_pipeline_draws_every_figure_and_leaks_nothing(tmp_path: Path
             assert secret not in data
             assert b"sitio-sintetico" not in data
             assert b"usuario.sintetico" not in data
+
+
+def test_calibration_report_recommends_with_the_same_rule() -> None:
+    a = _measurement("A", 64, 3, 0.2)
+    b = _measurement("B", 256, 3, 0.9)
+    c = _measurement("C", 2048, 1, 1.4)
+    text = calibrate.report([a, b, c])
+    assert "Recomendada para este equipo: B" in text
+    assert "create --config B" in text
+    slow = calibrate.report([_measurement("A", 64, 3, 1.5)])
+    assert "Ninguna configuración" in slow
+
+
+@linux_only
+def test_calibration_runs_and_writes_nothing(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = {p.name: p.stat().st_mtime for p in e1_argon2.RESULTS_DIR.glob("*.csv")}
+    monkeypatch.setattr(calibrate, "CONFIG_B", CONFIG_A)  # keep the test light
+    assert calibrate.main(["--repeats", "1", "--skip-c"]) == 0
+    out = capsys.readouterr().out
+    assert "Recomendada para este equipo" in out
+    assert BENCH_PASSWORD not in out
+    after = {p.name: p.stat().st_mtime for p in e1_argon2.RESULTS_DIR.glob("*.csv")}
+    assert after == before
