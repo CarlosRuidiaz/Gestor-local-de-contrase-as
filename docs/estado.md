@@ -239,7 +239,7 @@ Una entrada por sesión de trabajo que termine en push, la más reciente arriba.
 - `scripts/demo.py` recorre los escenarios exigidos con 50 comprobaciones, y `scripts/damage.py` sirve para la demostración manual del respaldo. Dos pruebas nuevas en `tests/test_demo.py`. Ambos scripts pasan `mypy` estricto.
 - `docs/informe/`: informe final en LaTeX con su PDF y el `Dockerfile` para compilarlo.
 - El comando `pvlt` apunta ahora a la web y el CLI a `pvlt-cli`. Cambian `pyproject.toml` y el `prog` de los dos analizadores de argumentos.
-- Suite completa, `mypy` y `ruff` en verde dentro del contenedor.
+- Suite completa (667 pruebas), `mypy`, `ruff` y la demostración en verde dentro de Docker sobre un clon limpio de la rama. Instalado con `pip`, `pvlt` abre la web y `pvlt-cli` el CLI.
 - Sigue: revisión del equipo (ver "Siguiente paso") y merge.
 
 ### 2026-11-21 · Juan Rojas · `feat/bench`
