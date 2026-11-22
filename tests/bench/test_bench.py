@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from bench import calibrate, e1_argon2, e2_open_save, e3_size, plots
+from bench import calibrate, e1_argon2, e2_open_save, e3_size, plots, run_all
 from bench.common import (
     BENCH_PASSWORD,
     read_csv,
@@ -168,3 +168,29 @@ def test_calibration_runs_and_writes_nothing(
     assert BENCH_PASSWORD not in out
     after = {p.name: p.stat().st_mtime for p in e1_argon2.RESULTS_DIR.glob("*.csv")}
     assert after == before
+
+
+@linux_only
+def test_quick_run_writes_apart_from_the_reference_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: dict[str, Path] = {}
+
+    def fake_e1(**kwargs: object) -> list[object]:
+        calls["e1"] = Path(str(kwargs["results_dir"]))
+        return []
+
+    def fake_e2(**kwargs: object) -> list[object]:
+        calls["e2"] = Path(str(kwargs["results_dir"]))
+        return []
+
+    monkeypatch.setattr(run_all, "QUICK_DIR", tmp_path / "quick")
+    monkeypatch.setattr(e1_argon2, "run", fake_e1)
+    monkeypatch.setattr(e2_open_save, "run", fake_e2)
+    before = {p.name: p.stat().st_mtime for p in run_all.RESULTS_DIR.glob("*.*")}
+    assert run_all.main(["--quick"]) == 0
+    after = {p.name: p.stat().st_mtime for p in run_all.RESULTS_DIR.glob("*.*")}
+    assert after == before
+    assert calls == {"e1": tmp_path / "quick", "e2": tmp_path / "quick"}
+    assert (tmp_path / "quick" / "sistema.csv").exists()
+    assert (tmp_path / "quick" / "e3_tamano.csv").exists()

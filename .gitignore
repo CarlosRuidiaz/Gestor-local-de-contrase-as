@@ -7,6 +7,8 @@
 
 # Resultados crudos de los experimentos
 bench/results/raw/
+# Prueba rápida de los experimentos, sin validez para el informe
+bench/results/quick/
 
 # Entornos virtuales
 .venv/
