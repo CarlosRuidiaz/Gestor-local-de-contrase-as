@@ -32,14 +32,14 @@ markers = [
 
 [tool.mypy]
 python_version = "3.12"
-files = ["pvlt", "bench"]
+files = ["pvlt", "bench", "scripts/demo.py", "scripts/damage.py"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
 # Modo estricto en las capas que tocan claves, formato y disco, en las dos interfaces
 # y en los experimentos.
 [[tool.mypy.overrides]]
-module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli", "pvlt.web.*", "bench.*"]
+module = ["pvlt.crypto.*", "pvlt.storage.*", "pvlt.vault.*", "pvlt.cli", "pvlt.web.*", "bench.*", "scripts.demo", "scripts.damage"]
 strict = true
 
 [tool.ruff]
