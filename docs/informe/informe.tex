@@ -77,7 +77,25 @@ El enunciado del Proyecto 2 pide un gestor local que cree, desbloquee y bloquee 
 
 El Entregable 1 propuso el diseño. Este informe describe lo que se construyó a partir de él, cómo se verificó y qué se midió. La sección~\ref{sec:modelo} recuerda el modelo de adversario. Las secciones~\ref{sec:protocolo} y~\ref{sec:arquitectura} presentan el protocolo y la arquitectura implementados. La sección~\ref{sec:desviaciones} enumera las desviaciones y concreciones respecto al diseño. Las secciones~\ref{sec:pruebas} y~\ref{sec:experimentos} reportan las pruebas y los experimentos, y la sección~\ref{sec:limitaciones} discute los límites de seguridad que quedan.
 
-El producto es un repositorio ejecutable con Docker. Un \code{docker compose up} arranca la interfaz web, \code{docker compose run -{}-rm app pytest} ejecuta la suite completa y \code{python -m scripts.demo} recorre cada escenario de la demostración exigida con datos sintéticos. El README del repositorio detalla la instalación desde cero y el guion de demostración.
+El producto es un repositorio ejecutable con Docker. Un \code{docker compose up} arranca la interfaz web, \code{docker compose run -{}-rm app pytest} ejecuta la suite completa y \code{python -m scripts.demo} recorre cada escenario de la demostración exigida con datos sintéticos. El README del repositorio detalla la instalación desde cero y el guion de demostración. La tabla~\ref{tab:enunciado} indica dónde se resuelve cada decisión de diseño que el enunciado deja al equipo.
+
+\begin{table}[h]
+\centering\small
+\caption{Decisiones que el enunciado pide resolver y dónde se tratan.}
+\label{tab:enunciado}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{0.42\linewidth}@{}}
+\toprule
+Decisión del enunciado & Dónde y con qué evidencia \\
+\midrule
+Parámetros de Argon2id para el equipo de ejecución & §\ref{sec:justificacion} y E1 (§\ref{sec:experimentos}), \code{bench.calibrate} \\
+Estructura pública y cifrada del archivo & §3.2, figura~\ref{fig:formato}, T4 y T5 \\
+Unicidad de nonces tras cierres inesperados o reintentos & §3.4 y T6 \\
+Cambiar la contraseña maestra y distinguir contraseña incorrecta de archivo dañado & §3.3, §3.5, §\ref{sec:justificacion}, T2 y T4 \\
+Guardado atómico que no sustituye una bóveda válida por una incompleta & §\ref{sec:arquitectura} y T7 \\
+Ataques que una aplicación local no puede evitar & §\ref{sec:modelo} y §\ref{sec:limitaciones} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{Escenario y modelo de adversario}\label{sec:modelo}
 
@@ -94,8 +112,8 @@ Id & Adversario y capacidad & Propiedad y mecanismo & Evidencia \\
 A1 & Lector fuera de línea que copia el archivo y prueba contraseñas con hardware paralelo & P1 confidencialidad (AEAD, relleno a 4 KiB) y P2 costo por intento (Argon2id, sal de 128 bits) & T3, T8, E1 \\
 A2 & Manipulador que altera, trunca o reemplaza el archivo & P3 integridad (cabecera como dato asociado) y P7 parámetros acotados & T4, T5 \\
 A3 & Fallo no malicioso que interrumpe un guardado o daña bytes & P4 nonces únicos (DEK nueva por guardado) y P5 guardado atómico & T6, T7 \\
-A4 & Usuario local sin privilegios que lee argumentos, entorno y archivos laxos y se conecta a puertos locales & P6 ningún secreto fuera de memoria y P8 servidor usable solo por el usuario & T9, T13 \\
-A5 & Página web maliciosa que intenta CSRF, DNS rebinding o incrustar la aplicación & P8 (token de arranque, cookie \code{SameSite=Strict}, CSRF, Host y Origin, CSP) & T12, T13 \\
+A4 & Usuario local sin privilegios que lee argumentos, entorno y archivos laxos y se conecta a puertos locales & P6 ningún secreto fuera de memoria y P8 servidor usable solo por el usuario & T9, T12, T13 \\
+A5 & Página web maliciosa que intenta CSRF, DNS rebinding o incrustar la aplicación & P8 (token de arranque, cookie \code{SameSite=Strict}, CSRF, Host y Origin, CSP) & T13 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -112,7 +130,7 @@ Con $\mathrm{Hdr}$ los 59 bytes de la cabecera tal como se escriben en disco y $
 W &= \mathrm{ChaCha20\text{-}Poly1305}(\mathit{KEK}).\mathrm{Enc}(N_w,\ \mathit{DEK},\ \texttt{"PVLT/v1/wrap"} \,\|\, \mathrm{Hdr})\\
 C &= \mathrm{ChaCha20\text{-}Poly1305}(\mathit{DEK}).\mathrm{Enc}(N_d,\ \mathrm{pad}(P),\ \texttt{"PVLT/v1/data"} \,\|\, \mathrm{Hdr} \,\|\, W)
 \end{align*}
-La KEK solo se deriva al crear, al desbloquear y al cambiar la contraseña, y vive en memoria durante la sesión. Cada guardado genera con \code{secrets} una DEK de 32 bytes y nonces $N_w$ y $N_d$ de 12 bytes nuevos, de modo que guardar no repite Argon2id (figura~\ref{fig:claves}). Las etiquetas de dominio impiden que un bloque de envoltura se acepte como contenido, y la inclusión de $W$ en el dato asociado de $C$ ata el contenido a su DEK envuelta. Así el AEAD autentica tanto los datos como todos los metadatos críticos, que es la propiedad de integridad de textos cifrados que da a un esquema AEAD su seguridad frente a manipulación~\cite[§9.5]{boneh}.
+La KEK de la bóveda solo se deriva al crear, al desbloquear y al cambiar la contraseña, y vive en memoria durante la sesión. Exportar e importar derivan además una KEK propia con la contraseña de exportación, que se borra en cuanto se usa. Cada guardado genera con \code{secrets} una DEK de 32 bytes y nonces $N_w$ y $N_d$ de 12 bytes nuevos, de modo que guardar no repite Argon2id (figura~\ref{fig:claves}). Las etiquetas de dominio impiden que un bloque de envoltura se acepte como contenido, y la inclusión de $W$ en el dato asociado de $C$ ata el contenido a su DEK envuelta. Así el AEAD autentica tanto los datos como todos los metadatos críticos, que es la propiedad de integridad de textos cifrados que da a un esquema AEAD su seguridad frente a manipulación~\cite[§9.5]{boneh}.
 
 \begin{figure}[h]
 \centering
@@ -179,7 +197,7 @@ Abrir un archivo aplica cuatro comprobaciones en orden, cada una con su excepci�
 \item \textbf{Abrir $W$} con la KEK. Falla con «Contraseña incorrecta».
 \item \textbf{Abrir $C$} con la DEK, quitar el relleno y validar el JSON de forma estricta. Falla con «Contenido manipulado».
 \end{enumerate}
-Un atacante puede recalcular el resumen, así que la aceptación depende siempre de las comprobaciones 3 y 4. Una alteración de la sal, de cualquier campo de la cabecera o de $W$ también hace fallar la comprobación 3 y se informa como contraseña incorrecta, porque sin la clave ambos casos son indistinguibles. Es la limitación que el Entregable 1 ya declaraba.
+Un atacante puede recalcular el resumen, así que la aceptación depende siempre de las comprobaciones 3 y 4. Una alteración de la sal, de cualquier otro campo de la cabecera que siga dentro de los límites, de $N_w$ o de $W$ hace fallar la comprobación 3 y se informa como contraseña incorrecta, porque sin la clave ambos casos son indistinguibles. Es la limitación que el Entregable 1 ya declaraba.
 
 \subsection{Unicidad de nonces sin contador}
 
@@ -191,7 +209,7 @@ Cada DEK cifra un único mensaje, así que bajo ella la unicidad del nonce es es
 
 \subsection{Por qué estas elecciones y no otras}\label{sec:justificacion}
 
-\textbf{Función de derivación.} Un gestor local enfrenta el peor caso de los ataques a contraseñas. Quien copia el archivo prueba candidatas fuera de línea, sin que nada limite los intentos, con un costo del orden de $|D|$ sobre un diccionario $D$~\cite[§18.4.4]{boneh}~\cite{protocols}. La única defensa es encarecer cada intento, y la tabla~\ref{tab:alternativas} resume las opciones. La sal de 128 bits anula las tablas precalculadas pero no el diccionario directo. Se descartó además una sal secreta (\emph{pepper}), porque en un gestor local no tendría dónde guardarse aparte del propio archivo.
+\textbf{Función de derivación.} Un gestor local enfrenta el peor caso de los ataques a contraseñas. Quien copia el archivo prueba candidatas fuera de línea, sin que nada limite los intentos, con un costo del orden de $|D|$ sobre un diccionario $D$~\cite[§18.4.4]{boneh}~\cite{protocols}. La única defensa es encarecer cada intento, y la tabla~\ref{tab:alternativas} resume las opciones según~\cite[§18.4]{boneh} y~\cite[§1]{rfc9106}. La sal de 128 bits anula las tablas precalculadas pero no el diccionario directo. Se descartó además una sal secreta (\emph{pepper}), porque en un gestor local no tendría dónde guardarse aparte del propio archivo.
 
 \begin{table}[h]
 \centering\small
@@ -282,11 +300,11 @@ Al agregar o editar se rechaza un sitio vacío o de solo espacios & Se vería co
 \end{tabularx}
 \end{table}
 
-Durante un tiempo de la implementación el comando \pvlt{} apuntaba al CLI. En la versión final se alineó con el Entregable 1: \pvlt{} arranca la interfaz web y abre el navegador, y el CLI queda como \code{pvlt-cli}.
+Como describe el Entregable 1, el comando \pvlt{} arranca la interfaz web y abre el navegador. El CLI mínimo se instala aparte como \code{pvlt-cli}.
 
 \section{Pruebas}\label{sec:pruebas}
 
-Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde pocos minutos. Son 672 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 189 de la capa web, 58 del CLI, 13 de los experimentos y la calibración y el resto de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
+Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde pocos minutos. Son 672 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 189 de la capa web, 58 del CLI, 13 de los experimentos y la calibración, y 10 de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
 
 \begin{table}[h]
 \centering\small
@@ -360,7 +378,7 @@ El pico de memoria menos la base del intérprete, unos 32 MiB, coincide con la m
 
 \textbf{Carriles.} El Entregable 1 advertía que, si OpenSSL no procesaba los carriles en paralelo, el atacante tendría una ventaja de hasta $p$ veces en tiempo. E1 lo comprobó variando solo $p$ sobre B (figura~\ref{fig:e1}b). Con 1, 2 y 4 carriles el desbloqueo baja de 0,840 a 0,528 y 0,414 s, mientras el tiempo de CPU se mantiene entre 0,83 y 0,99 s, y el cociente entre CPU y pared sube de 1,00 a 1,57 y 2,40. Como \code{process\_time} suma la CPU de todos los hilos, un cociente mayor que 1 prueba que los carriles trabajan a la vez. El defensor aprovecha entonces el paralelismo igual que lo haría un atacante, aunque con 4 carriles la ganancia no llega a 4 veces.
 
-\textbf{Costo de diccionario.} Si un intento cuesta $t$ segundos, recorrer un diccionario $D$ cuesta del orden de $t\cdot|D|$~\cite[§18.4.4]{boneh}. Con B y el $t$ medido, la tabla~\ref{tab:diccionario} da el costo en tiempo de pared de este equipo y en horas de núcleo, calculadas con el tiempo de CPU.
+\textbf{Costo de diccionario.} Si un intento cuesta $t$ segundos, recorrer un diccionario $D$ cuesta del orden de $t\cdot|D|$~\cite[§18.4.4]{boneh}. Con B y el $t$ medido, la tabla~\ref{tab:diccionario} da el costo en tiempo de pared de este equipo y en horas de núcleo, calculadas con el tiempo de CPU. El $t$ de E1 incluye las comprobaciones 1, 2 y 4, que el atacante podría omitir, pero E2 muestra que pesan unos milisegundos frente a los 422 ms de Argon2id, así que la estimación apenas cambia.
 
 \begin{table}[h]
 \centering\small
@@ -378,7 +396,7 @@ Contraseña aleatoria de 40 bits & $2^{40}$ & 14\,727 años & $3{,}1\cdot 10^8$ 
 \end{tabular}
 \end{table}
 
-Estas cifras describen a un atacante con un equipo como el de referencia. Uno con muchos núcleos o GPU divide el tiempo de pared entre el número de intentos que corre a la vez, pero cada intento le exige 256 MiB de memoria, que es justo el recurso escaso del hardware paralelo~\cite{rfc9106}. Una tarjeta con 24 GB de memoria, por ejemplo, no puede sostener más de unas 90 instancias simultáneas. La conclusión práctica es que Argon2id hace inviable un diccionario grande contra una contraseña razonable, y no protege una contraseña que esté entre las más comunes, que el modelo deja fuera.
+Estas cifras describen a un atacante con un equipo como el de referencia. Uno con muchos núcleos o GPU divide el tiempo de pared entre el número de intentos que corre a la vez, pero cada intento le exige 256 MiB de memoria, que es justo el recurso escaso del hardware paralelo~\cite{rfc9106}. Una tarjeta con 24 GB de memoria, por ejemplo, no puede sostener más de unas 90 instancias simultáneas. Argon2id no vuelve imposible el ataque, lo encarece. Un atacante con cien equipos como el de referencia recorrería RockYou en menos de un día, así que una contraseña que esté en un diccionario conocido no queda protegida, y el modelo la deja fuera. En cambio, una contraseña aleatoria de 40 bits le costaría a esos mismos cien equipos unos 147 años, y cada bit adicional duplica la cifra. La seguridad final depende entonces de la entropía de la contraseña maestra, y Argon2id multiplica el costo de cada candidata por unos 400 ms de cómputo y 256 MiB de memoria.
 
 \subsection{E2: abrir y guardar sin Argon2id}
 
