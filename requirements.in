@@ -6,6 +6,10 @@ cryptography>=45  # única biblioteca criptográfica: ChaCha20-Poly1305 y Argon2
 fastapi
 uvicorn
 
+# Solo se usa en Windows (click, pytest y build la piden allí). Se fija aquí porque
+# requirements.txt se resuelve en Linux y sin ella la instalación local con hashes falla.
+colorama
+
 # Experimentos
 matplotlib # gráficas de bench/ para el informe
 
