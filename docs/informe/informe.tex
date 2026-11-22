@@ -68,7 +68,7 @@
 
 \begin{abstract}
 \noindent
-Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 672 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 4\,100 horas de núcleo para recorrer un diccionario del tamaño de RockYou.
+Se implementó \pvlt, un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, con interfaz web local y un CLI mínimo. La contraseña maestra deriva con Argon2id una clave que envuelve una clave de datos aleatoria, renovada en cada guardado, que cifra el contenido con ChaCha20-Poly1305. La cabecera completa del archivo es dato asociado de ambos cifrados. El producto cumple el diseño del Entregable 1 sin cambios en el formato ni en el protocolo, y lo concreta en los puntos que el diseño dejaba abiertos. Una suite de 673 pruebas automatizadas cubre los trece casos del plan, incluidos manipulación byte a byte, caídas tras cada paso del guardado y ataques contra el servidor local. Los experimentos fijan la configuración final de Argon2id en 256 MiB, 3 pasadas y 4 carriles, que desbloquea en 0,42 s en el equipo de referencia y obliga a un atacante a gastar unas 4\,100 horas de núcleo para recorrer un diccionario del tamaño de RockYou.
 \end{abstract}
 
 \section{Introducción y alcance}
@@ -293,7 +293,7 @@ Lock por bloqueo del núcleo, sin PID & Se libera solo al morir el proceso. En D
 En la importación, un conflicto sin decisión se omite, y toda la importación se escribe con un solo guardado & Es la opción que no destruye ni duplica nada \\
 El CSRF se exige también en las lecturas y el token se guarda en \code{sessionStorage} & Las lecturas devuelven contraseñas, y las cookies no distinguen puertos, así que otro servidor local podría recibir la cookie pero no el token \\
 Exportar e importar desde la web usan un nombre de archivo de la carpeta de la bóveda & Evita transferir archivos por el navegador y escribir temporales fuera del guardado atómico \\
-Un CLI mínimo con \code{getpass} que pide también sitio, usuario y notas por teclado & El diseño lo preveía para pruebas. La regla de no registrar secretos alcanza a todos los datos de las entradas, no solo a las contraseñas \\
+Un CLI mínimo con \code{getpass} que pide también sitio, usuario y notas por teclado & No figuraba en el Entregable 1. Se añadió para pruebas, experimentos y la demostración del respaldo. La regla de no registrar secretos alcanza a todos los datos de las entradas, no solo a las contraseñas \\
 Si el portapapeles no puede vaciarse por falta de foco, el aviso queda fijo y el vaciado se repite al volver a la pestaña & El diseño suponía que la escritura siempre se permite. El navegador la rechaza sin foco, que es el caso habitual al pegar en otra ventana \\
 Al agregar o editar se rechaza un sitio vacío o de solo espacios & Se vería como una fila en blanco. Al abrir no se aplica, para no cambiar las reglas del formato \\
 \bottomrule
@@ -304,7 +304,7 @@ Como describe el Entregable 1, el comando \pvlt{} arranca la interfaz web y abre
 
 \section{Pruebas}\label{sec:pruebas}
 
-Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde pocos minutos. Son 672 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 189 de la capa web, 58 del CLI, 13 de los experimentos y la calibración, y 10 de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
+Todas las pruebas son automatizadas, usan datos sintéticos y corren con \code{pytest} dentro del contenedor de referencia. Las funcionales usan la configuración A de Argon2id (64 MiB) para que la suite completa tarde pocos minutos. Son 673 pruebas: 59 de \code{crypto/}, 127 de \code{storage/}, 216 de \code{vault/}, 189 de la capa web, 58 del CLI, 14 de los experimentos y la calibración, y 10 de humo y del guion de demostración. Además, \code{mypy} en modo estricto revisa las capas, las interfaces y los experimentos, y \code{ruff} incluye las reglas de seguridad de \emph{bandit}, que entre otras cosas prohíben \code{random} para material secreto.
 
 \begin{table}[h]
 \centering\small
@@ -333,7 +333,7 @@ T13 & Por HTTP sobre cada ruta y en el navegador: sin cookie 401, sin CSRF o con
 
 T11 merece un comentario. El muestreo por rechazo hace que, en contraseñas cortas, las clases pequeñas aparezcan algo más de lo que les correspondería por tamaño, porque las candidatas a las que les falta una clase son más frecuentes cuanto más pequeña es esa clase. Dentro de cada clase la distribución sigue siendo exactamente uniforme, que es lo que la prueba verifica, y sobre el alfabeto completo el efecto desaparece con longitud 128.
 
-El guion \code{scripts/demo.py} recorre los mismos escenarios en vivo, con 50 comprobaciones explícitas, y una prueba verifica que termina sin fallos y sin mostrar ningún secreto.
+El guion \code{scripts/demo.py} recorre los mismos escenarios en vivo, con 49 comprobaciones explícitas, y una prueba verifica que termina sin fallos y sin mostrar ningún secreto.
 
 Además, la interfaz web se recorrió a mano en un navegador real sobre el contenedor de referencia, con datos sintéticos: crear con contraseñas cortas y distintas, todas las operaciones sobre entradas, notas con HTML, búsqueda, generador, bloqueo manual y por inactividad, cambio de contraseña, exportación con nombres hostiles, importación con cada decisión de conflicto, restauración del respaldo, aviso de retroceso, 500 entradas y pantalla de móvil. El recorrido encontró dos fallos que las pruebas automáticas no veían, porque en ellas el navegador tiene siempre el foco y la página se abre una sola vez. El primero era que el portapapeles no se vaciaba si el usuario había cambiado de ventana. El segundo, que pegar el enlace de un \pvlt{} reiniciado en la misma pestaña no recargaba la página. Ambos se corrigieron y tienen ahora su prueba en Chromium. El recorrido dejó también mejoras de uso: orden alfabético de la lista, fechas legibles, rechazo de sitios en blanco y una vista adaptada a pantallas estrechas.
 
@@ -419,7 +419,7 @@ Entradas & Guardar & Abrir \\
 \end{tabular}
 \vspace{1ex}
 
-Guardar lo domina la escritura atómica con sus \code{fsync} (de 3,9 a 7,3 ms) frente a sellar (de 0,07 a 1,8 ms). Abrir 500 entradas lo domina el análisis estricto del JSON, no el AEAD.
+Guardar lo domina la escritura atómica con sus \code{fsync} (de 3,9 a 7,3 ms) frente a sellar (de 0,07 a 1,8 ms), y la variación de esos \code{fsync} explica que guardar 1 entrada salga más lento que guardar 100. Abrir 500 entradas lo domina el análisis estricto del JSON, no el AEAD.
 \end{minipage}
 \caption{E2: abrir y guardar con 1, 100 y 500 entradas (mediana de 50).}
 \label{fig:e2}
@@ -450,7 +450,7 @@ Entradas & Archivo & Archivo/JSON \\
 \label{fig:e3}
 \end{figure}
 
-La parte fija ocupa 183 bytes y el resto es el JSON más el relleno hasta el siguiente múltiplo de 4096 (figura~\ref{fig:e3}). Por debajo de unas 14 entradas el archivo mide siempre 4\,279 bytes, así que su tamaño no distingue una bóveda vacía de una con una docena de entradas. Desde 100 entradas el archivo ocupa como mucho un 3\,\% más que el JSON. El relleno cumple su función de revelar solo un rango, y su costo es despreciable para bóvedas de este tamaño.
+El exceso fijo es de 183 bytes y el resto es el JSON más el relleno hasta el siguiente múltiplo de 4096 (figura~\ref{fig:e3}). Por debajo de unas 14 entradas el archivo mide siempre 4\,279 bytes, así que su tamaño no distingue una bóveda vacía de una con una docena de entradas. Desde 100 entradas el archivo ocupa como mucho un 3\,\% más que el JSON. El relleno cumple su función de revelar solo un rango, y su costo es despreciable para bóvedas de este tamaño.
 
 \section{Límites de seguridad y limitaciones}\label{sec:limitaciones}
 
@@ -479,7 +479,7 @@ Las limitaciones que quedan son las propias de una aplicación local escrita en 
 
 \begin{thebibliography}{9}\small
 \setlength{\itemsep}{1pt}
-\bibitem{boneh} Boneh, D. y Shoup, V. (2023). \emph{A Graduate Course in Applied Cryptography}, v0.6, §§8.10, 9.5 y 18.4.4.
+\bibitem{boneh} Boneh, D. y Shoup, V. (2023). \emph{A Graduate Course in Applied Cryptography}, v0.6, §§9.5 y 18.4.4.
 \bibitem{rfc9106} Biryukov, A., Dinu, D., Khovratovich, D. y Josefsson, S. (2021). \emph{Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications}. RFC 9106.
 \bibitem{rfc8439} Nir, Y. y Langley, A. (2018). \emph{ChaCha20 and Poly1305 for IETF Protocols}. RFC 8439.
 \bibitem{sp80038d} Dworkin, M. (2007). \emph{Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC}. NIST SP 800-38D.

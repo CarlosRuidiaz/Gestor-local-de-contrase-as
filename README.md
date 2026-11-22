@@ -122,7 +122,7 @@ docker compose run --rm app ruff check .
 docker compose run --rm app ruff format --check .
 ```
 
-La suite completa tarda entre tres y seis minutos, según el equipo, y cubre las pruebas T1 a T13 del diseño, los scripts de experimentos y el guion de demostración. Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
+La suite completa tarda entre tres y diez minutos, según el equipo, y cubre las pruebas T1 a T13 del diseño, los scripts de experimentos y el guion de demostración. Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
 
 | Prueba | Qué comprueba | Dónde |
 |---|---|---|
@@ -181,6 +181,8 @@ Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenari
     docker compose up
     ```
 
+    En Git Bash, la ruta `/data/...` se convierte en una ruta de Windows. Ahí hay que anteponer `MSYS_NO_PATHCONV=1` al primer comando, o usar PowerShell.
+
     La página informa que la bóveda está dañada y ofrece restaurar el respaldo. Al confirmar, el archivo dañado se conserva como `boveda.pvlt.damaged-<fecha>` y la bóveda abre con la versión anterior.
 
 ## Experimentos
@@ -193,7 +195,7 @@ docker compose run --rm -e PVLT_BENCH_HOST="descripción del equipo" -v "${PWD}/
 - **E2**: abrir y guardar sin Argon2id con 1, 100 y 500 entradas (mediana de 50).
 - **E3**: tamaño del archivo frente al JSON sin cifrar.
 
-Tarda unos 5 minutos. Los CSV de resumen y las gráficas quedan en [`bench/results/`](bench/results/), junto con `sistema.csv`, que describe el equipo. `--quick` lo recorre con pocas repeticiones, solo para comprobar que funciona. Mientras se mide conviene no ejecutar nada pesado en el equipo.
+Tarda unos 5 minutos. Los CSV de resumen y las gráficas quedan en [`bench/results/`](bench/results/), junto con `sistema.csv`, que describe el equipo. `--quick` lo recorre con pocas repeticiones, solo para comprobar que funciona, y deja sus resultados en `bench/results/quick/` para no tocar los de referencia. Mientras se mide conviene no ejecutar nada pesado en el equipo.
 
 Resultados en el equipo de referencia (Intel Core i5-10300H, Docker sobre WSL2):
 
