@@ -11,7 +11,9 @@ requires-python = ">=3.12"
 dependencies = ["cryptography", "fastapi", "uvicorn"]
 
 [project.scripts]
-pvlt = "pvlt.cli:main"
+# `pvlt` arranca la interfaz web, como describe el Entregable 1. El CLI mínimo es `pvlt-cli`.
+pvlt = "pvlt.web.server:main"
+pvlt-cli = "pvlt.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["pvlt*"]
