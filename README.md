@@ -6,114 +6,226 @@ Equipo: Carlos Ruidiaz, Juan Bolivar, Juan Rojas y Claudia Elias.
 
 `pvlt` es un gestor de contraseñas de un solo usuario que funciona por completo en el equipo, sin red ni sincronización. La bóveda guarda entre 1 y 500 credenciales (sitio, usuario, contraseña y notas) cifradas bajo una contraseña maestra. Se usa desde una interfaz web local o desde un CLI mínimo.
 
+## Contenido
+
+1. [Qué hace](#qué-hace)
+2. [Antes de empezar](#antes-de-empezar)
+3. [Instalación paso a paso](#instalación-paso-a-paso)
+4. [Primer uso de la interfaz web](#primer-uso-de-la-interfaz-web)
+5. [Guion de demostración](#guion-de-demostración)
+6. [Pruebas automatizadas](#pruebas-automatizadas)
+7. [Experimentos](#experimentos)
+8. [Uso del CLI](#uso-del-cli)
+9. [Instalación local sin Docker](#instalación-local-sin-docker)
+10. [Problemas frecuentes](#problemas-frecuentes)
+11. [Cómo funciona por dentro](#cómo-funciona-por-dentro)
+12. [Documentación e informe](#documentación-e-informe)
+
 ## Qué hace
 
 - Crear, desbloquear y bloquear la bóveda. El bloqueo ocurre con un botón, al cerrar el programa o tras 5 minutos de inactividad (configurable entre 30 s y 1 h).
-- Agregar, buscar, consultar, copiar, modificar y eliminar credenciales.
+- Agregar, buscar, consultar, copiar, modificar y eliminar credenciales. La lista se ordena alfabéticamente por sitio.
 - Generador de contraseñas configurable (longitud de 8 a 128 y cuatro clases de caracteres) que muestra la entropía.
 - Cambiar la contraseña maestra sin perder registros.
 - Exportar e importar solo en formato cifrado, con contraseña propia y vista previa de conflictos.
 - Guardado atómico con respaldo y recuperación tras un fallo o un archivo dañado.
 
-## Criptografía en una línea
+## Antes de empezar
 
-La contraseña maestra deriva una clave de envoltura (KEK) con **Argon2id v1.3** (256 MiB, 3 pasadas, 4 carriles, sal de 128 bits). La KEK cifra con **ChaCha20-Poly1305** una clave de datos (DEK) aleatoria que se renueva en cada guardado y cifra el contenido. La cabecera completa va como dato asociado con etiquetas de dominio separadas. Todo pasa por la biblioteca `cryptography` (pyca), sin primitivas propias.
+Hace falta:
 
-```
-KEK = Argon2id(contraseña, sal, m, t, p)
-W   = ChaCha20-Poly1305(KEK).cifrar(N_w, DEK,     "PVLT/v1/wrap" || Hdr)
-C   = ChaCha20-Poly1305(DEK).cifrar(N_d, pad(P),  "PVLT/v1/data" || Hdr || W)
-```
+| Qué | Para qué | Cómo comprobarlo |
+|---|---|---|
+| **Git** | Descargar el repositorio | `git --version` |
+| **Docker** con Docker Compose (Docker Desktop en Windows o macOS) | Ejecutar `pvlt` en la plataforma de referencia: Linux con Python 3.12 dentro de un contenedor | `docker compose version` |
+| Unos 2 GB libres en disco | La imagen, que incluye Chromium sin interfaz para las pruebas de navegador | |
+| Algo más de 2 GiB de memoria libre para Docker | Solo para medir la configuración C de Argon2id (2 GiB). El uso normal no lo requiere | |
 
-El formato binario, el protocolo y el modelo de adversario están en [`docs/diseno.md`](docs/diseno.md). El análisis completo está en el informe final ([`docs/informe/`](docs/informe/)).
+En Windows, Docker Desktop tiene que estar **abierto** antes de ejecutar cualquier comando `docker`. Si no lo está, los comandos fallan con un error del tipo `cannot connect to the Docker daemon`.
 
-## Requisitos
+Los comandos de este README están pensados para **PowerShell** en Windows o para la terminal de Linux y macOS. En Git Bash, los comandos que llevan una ruta `/data/...` necesitan `MSYS_NO_PATHCONV=1` delante, como se explica en [Problemas frecuentes](#problemas-frecuentes).
 
-- **Docker** con Docker Compose (Docker Desktop en Windows o macOS). Es la plataforma de referencia: Linux con Python 3.12 dentro de un contenedor.
-- Unos 2 GB libres para la imagen, que incluye Chromium sin interfaz para las pruebas de navegador.
-- Para medir la configuración C de Argon2id (2 GiB) el contenedor necesita algo más de 2 GiB de memoria libre. El uso normal no lo requiere.
+## Instalación paso a paso
 
-Sin Docker también funciona con Python 3.12 o superior (ver [Instalación local](#instalación-local-sin-docker)).
-
-## Instalación desde cero con Docker
+**1. Descargar el repositorio** y entrar en su carpeta. Todos los comandos siguientes se ejecutan desde ahí.
 
 ```
 git clone https://github.com/CarlosRuidiaz/Gestor-local-de-contrase-as.git
 cd Gestor-local-de-contrase-as
+```
+
+**2. Construir la imagen.** La primera vez tarda varios minutos, porque descarga Python, las dependencias y Chromium. Las siguientes veces reutiliza lo ya descargado.
+
+```
 docker compose build
 ```
 
-La imagen instala las dependencias de `requirements.txt` con `pip install --require-hashes`, así que cualquier paquete cuyo hash no coincida se rechaza. Las versiones están fijadas con `pip-tools` a partir de `requirements.in`.
+Termina sin errores y la imagen queda con el nombre `pvlt:dev`. Las dependencias se instalan desde `requirements.txt` con `pip install --require-hashes`, así que si el hash de algún paquete no coincide la construcción se detiene. Las versiones están fijadas con `pip-tools` a partir de `requirements.in`.
 
-Después de cambiar el código hay que volver a ejecutar `docker compose build`, porque el código se copia a la imagen y no se monta.
+**3. Comprobar que todo funciona** (opcional, unos 4 minutos):
 
-## Uso de la interfaz web
+```
+docker compose run --rm app pytest
+```
+
+Debe terminar con una línea como `673 passed`. Más detalles en [Pruebas automatizadas](#pruebas-automatizadas).
+
+> Si se modifica el código, hay que repetir `docker compose build`. El código se copia dentro de la imagen y no se lee desde la carpeta.
+
+## Primer uso de la interfaz web
+
+**1. Arrancar `pvlt`:**
 
 ```
 docker compose up
 ```
 
-1. La terminal imprime una URL de la forma `http://127.0.0.1:8765/#t=...`. Se abre en el navegador del equipo.
-2. El enlace sirve **una sola vez**. Al cargarse se canjea por una cookie de sesión y desaparece de la barra de direcciones. Recargar la página conserva la sesión, pero otra pestaña u otro navegador necesitan reiniciar `pvlt`. Tras reiniciarlo, el enlace nuevo puede pegarse en la misma pestaña.
-3. La primera vez se crea la bóveda eligiendo la contraseña maestra (de 8 a 1024 caracteres). Conviene rechazar el ofrecimiento del navegador de guardarla.
-4. Ctrl+C en la terminal cierra el servidor y bloquea la bóveda.
-
-La bóveda vive en el volumen de Docker `pvlt-data`, en `/data/boveda.pvlt`. El puerto solo se publica en la interfaz local del equipo (`127.0.0.1:8765`), así que ningún otro equipo puede conectarse.
-
-Para usar otra bóveda:
+La terminal muestra algo como esto:
 
 ```
-docker compose run --rm --service-ports app python -m pvlt.web --vault /data/otra.pvlt
+pvlt escucha en http://127.0.0.1:8765/ (bóveda: /data/boveda.pvlt)
+Abre esta URL en el navegador: http://127.0.0.1:8765/#t=...
+El enlace sirve una sola vez. Ctrl+C cierra pvlt y bloquea la bóveda.
 ```
 
-`docker compose run` necesita `--service-ports` para publicar el puerto.
+**2. Abrir el enlace.** Hay que copiar la URL completa, **incluida la parte `#t=...`**, y pegarla en el navegador. Esa parte es un token de un solo uso: al cargar la página se canjea por una cookie de sesión y desaparece de la barra de direcciones.
 
-Exportar e importar trabajan con nombres de archivo `.pvlt` dentro de la carpeta de la bóveda. Para sacar una exportación del volumen se usa `docker compose cp app:/data/exportacion.pvlt .` con el contenedor en marcha.
+- Recargar la página (F5) conserva la sesión.
+- Abrir otra pestaña u otro navegador muestra «Sesión no disponible», porque el enlace ya se usó. Para entrar desde otra pestaña hay que reiniciar `pvlt` (paso 5) y abrir el enlace nuevo. Se puede pegar en la misma pestaña.
 
-## Uso del CLI
+**3. Crear la bóveda.** La primera vez aparece la pantalla «Crear bóveda»:
 
-El CLI es un punto de entrada mínimo para pruebas y experimentos. Las contraseñas se piden con `getpass` y el resto de datos sensibles (sitio, usuario, notas, búsqueda) por teclado, nunca como argumento.
+- Escribir la contraseña maestra (de 8 a 1024 caracteres) y repetirla.
+- Dejar la configuración de Argon2id en **B (recomendada)**. La A es más rápida y más débil, y la C necesita 2 GiB de memoria. La sección [Elegir la configuración en otro equipo](#elegir-la-configuración-en-otro-equipo) explica cómo decidir.
+- Pulsar **Crear**. Si el navegador ofrece guardar la contraseña, conviene rechazarlo.
 
-```
-docker compose run --rm app python -m pvlt.cli create --config A
-docker compose run --rm app python -m pvlt.cli add --generate
-docker compose run --rm app python -m pvlt.cli list --search
-docker compose run --rm app python -m pvlt.cli --help
-```
+Aparece la pantalla principal con la lista vacía y los botones **Nueva entrada**, **Generador**, **Contraseña maestra**, **Exportar**, **Importar** y **Ajustes**. Arriba están el botón **Bloquear** y la cuenta atrás «Bloqueo automático en N s».
 
-| Orden | Qué hace |
+**4. Usarla.** [La demostración en la interfaz web](#demostración-en-la-interfaz-web) recorre cada operación paso a paso.
+
+**5. Cerrar.** Pulsar **Ctrl+C** en la terminal donde corre `docker compose up`. La terminal muestra «pvlt cerrado. La bóveda quedó bloqueada.» Para volver a entrar se repite desde el paso 1. Cada arranque imprime un enlace nuevo, y la bóveda creada sigue ahí.
+
+**Dónde se guarda la bóveda.** En el volumen de Docker `pvlt-data`, en `/data/boveda.pvlt`. Junto a ella están su respaldo `boveda.pvlt.bak` y, si se exporta, los archivos de exportación. El volumen sobrevive al cerrar `pvlt` y al reiniciar el equipo. El puerto solo se publica en la interfaz local (`127.0.0.1:8765`), así que ningún otro equipo puede conectarse.
+
+**Otras tareas con la bóveda:**
+
+| Para | Comando |
 |---|---|
-| `create [--config A\|B\|C]` | Crea una bóveda vacía (por defecto con la configuración B) |
-| `unlock` | Abre la bóveda y la lista |
-| `list [--search]` | Lista sin contraseñas, con filtro opcional |
-| `get ID [--show]` | Muestra una entrada, y la contraseña solo con `--show` |
-| `add [--generate ...]` | Agrega una entrada, con contraseña escrita o generada |
-| `change-password` | Cambia la contraseña maestra |
-| `export DESTINO [--overwrite]` | Exporta a un archivo cifrado con contraseña propia |
-| `import ORIGEN [--on-conflict ask\|skip\|replace\|keep-both]` | Importa una exportación |
-| `generate` | Genera una contraseña sin tocar la bóveda |
+| Ver los archivos del volumen | `docker compose run --rm app ls -l /data` |
+| Usar otra bóveda en el mismo volumen | `docker compose run --rm --service-ports app python -m pvlt.web --vault /data/otra.pvlt` |
+| Copiar una exportación al equipo (con `pvlt` en marcha) | `docker compose cp app:/data/exportacion.pvlt .` |
+| **Borrar todo** y empezar de cero | `docker compose down -v` |
 
-La ruta se elige con `--vault RUTA`. Sin ella se usa `$PVLT_VAULT_DIR/boveda.pvlt` (en el contenedor, `/data`) o `./boveda.pvlt`. Los códigos de salida están documentados en `pvlt/cli.py`.
+`docker compose down -v` elimina el volumen con la bóveda, su respaldo y las exportaciones, y no se puede deshacer. Solo debe usarse con bóvedas de prueba.
 
-## Instalación local (sin Docker)
+## Guion de demostración
 
-Con Python 3.12 o superior:
+La demostración tiene dos partes. La automática recorre en un minuto todos los escenarios que pide el enunciado y comprueba cada resultado. La manual, en la interfaz web, muestra lo mismo como lo vería un usuario. Todos los datos son sintéticos: **no se debe usar ninguna contraseña real**.
+
+### Preparar una demostración desde cero
+
+Para empezar con una bóveda nueva, sin restos de pruebas anteriores:
 
 ```
-python -m venv .venv
-.venv\Scripts\activate            # en Linux o macOS: source .venv/bin/activate
-pip install --require-hashes -r requirements.txt
-pip install --no-deps -e .
+docker compose down -v
+docker compose build
 ```
 
-Quedan disponibles dos comandos:
+El primer comando borra el volumen de datos (ver la advertencia de la sección anterior).
 
-- `pvlt` arranca la interfaz web en `127.0.0.1` con un puerto aleatorio y abre el navegador. Acepta `--vault RUTA`, `--port N` y `--no-browser`.
-- `pvlt-cli` es el CLI descrito arriba.
+### Demostración automática
 
-Fuera de Docker no se garantiza la semántica POSIX de `fsync` y `os.replace` ni los permisos 0600. Windows y macOS son compatibles, pero las mediciones y las pruebas de fallo de referencia se hicieron en el contenedor.
+```
+docker compose run --rm app python -m scripts.demo
+```
 
-## Pruebas
+Trabaja en una carpeta temporal dentro del contenedor, así que no toca la bóveda del volumen. No muestra ninguna contraseña. Cada comprobación imprime `[OK]` o `[FALLO]`, y al final aparece «Todas las comprobaciones pasaron.» Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenario.
+
+| Escenario | Qué comprueba |
+|---|---|
+| 1 | Crear, cerrar y reabrir bóvedas con 1, 100 y 500 entradas, y que ningún dato aparece en claro en el archivo |
+| 2 | Agregar con el generador, buscar, consultar, modificar y eliminar, y el bloqueo por inactividad con un reloj simulado |
+| 3 | Cambiar la contraseña maestra: la nueva abre la bóveda y el respaldo, la anterior ya no |
+| 4 | Una contraseña incorrecta se rechaza sin tocar ningún archivo ni crear una bóveda vacía. También un archivo truncado, una versión desconocida y una memoria de Argon2id fuera de límite |
+| 5 | Un bit alterado en la sal, el identificador, la generación, los nonces, W, C y sus etiquetas se detecta aunque el atacante recalcule el resumen. También un byte dañado sin recalcular el resumen y el contenido de otra bóveda |
+| 6 | Una caída simulada tras cada paso del guardado atómico deja siempre una versión íntegra. Después se daña la bóveda y se restaura el respaldo |
+| 7 | La exportación no tiene texto claro, la importación con la contraseña equivocada se rechaza y una importación con conflicto se aplica |
+
+Opciones: `--config B` usa la configuración final de Argon2id en lugar de la A, y `--keep` conserva los archivos generados para inspeccionarlos.
+
+### Demostración en la interfaz web
+
+Antes de empezar, arrancar `pvlt` con `docker compose up` y abrir el enlace como se explica en [Primer uso](#primer-uso-de-la-interfaz-web). Cada paso dice qué hacer y qué debe verse.
+
+**1. Crear la bóveda**
+- Hacer: escribir `demo-maestra-1` como contraseña maestra, repetirla, dejar la configuración B y pulsar **Crear**.
+- Debe verse: la pantalla principal con la lista vacía.
+- Variante: si las dos contraseñas no coinciden, aparece «Las contraseñas no coinciden» y no se crea nada.
+
+**2. Agregar entradas con el generador**
+- Hacer: pulsar **Nueva entrada** y escribir un sitio (por ejemplo `correo.ejemplo`) y un usuario. Junto al campo de contraseña pulsar **Generar**.
+- Debe verse: la contraseña generada en el campo y su entropía en el aviso. Al pulsar **Guardar** aparece «Entrada guardada.» y la entrada en la lista. Repetir con dos o tres sitios más.
+- Generador aparte: el botón **Generador** de la barra permite elegir la longitud (8 a 128) y las clases de caracteres, y muestra la entropía en bits. **Guardar como predeterminado** fija esas opciones para el botón **Generar** de las entradas.
+
+**3. Buscar**
+- Hacer: escribir parte de un sitio o usuario en el cuadro de búsqueda.
+- Debe verse: la lista se filtra mientras se escribe, sin pedir nada al servidor.
+
+**4. Consultar y copiar**
+- Hacer: pulsar **Ver** en una fila. En el detalle, pulsar **Ver** para mostrar la contraseña y **Copiar** para copiarla. Pegarla en un editor de texto antes de 20 s.
+- Debe verse: el aviso «se vaciará en 20 s». Pasados 20 s aparece «Portapapeles vaciado.» y al pegar de nuevo no sale nada.
+- Variante: copiar, cambiar a otra ventana y esperar más de 20 s. El navegador no permite vaciar el portapapeles sin foco, así que al volver a la pestaña aparece un aviso de que el portapapeles todavía tiene la contraseña y el vaciado se completa en ese momento.
+
+**5. Modificar y eliminar**
+- Hacer: en el detalle, pulsar **Editar**, cambiar el usuario o las notas y **Guardar**. Después, en otra entrada, pulsar **Eliminar** y confirmar.
+- Debe verse: el cambio en la lista, y la entrada eliminada desaparece tras la pregunta «¿Eliminar esta entrada? No se puede deshacer.»
+- Variante: un sitio vacío o de solo espacios se rechaza al guardar.
+
+**6. HTML en las notas se muestra como texto**
+- Hacer: editar una entrada y escribir en las notas `<img src=x onerror=alert(1)>`. Guardar.
+- Debe verse: el texto tal cual en el detalle, sin imagen ni ventana de alerta.
+
+**7. Bloquear y contraseña incorrecta**
+- Hacer: pulsar **Bloquear**. Escribir una contraseña equivocada y pulsar **Desbloquear**.
+- Debe verse: «Contraseña incorrecta». La bóveda no cambia y no se crea ninguna vacía. Después, con `demo-maestra-1`, se abre con todas las entradas.
+
+**8. Bloqueo por inactividad**
+- Hacer: pulsar **Ajustes**, escribir `30` en «Bloqueo por inactividad, en segundos» y **Guardar**. No tocar la página durante 30 s.
+- Debe verse: la cuenta atrás de arriba pasa a 30 s al guardar, y al llegar a cero la página vuelve a pedir la contraseña con el aviso «La bóveda se bloqueó por inactividad.»
+- Al terminar conviene volver a poner `300`, para que no se bloquee durante el resto de la demostración.
+
+**9. Cambiar la contraseña maestra**
+- Hacer: pulsar **Contraseña maestra**, escribir la actual (`demo-maestra-1`) y una nueva (`demo-maestra-2`) dos veces, y pulsar **Cambiar**. Después **Bloquear**.
+- Debe verse: la antigua ya no abre la bóveda («Contraseña incorrecta») y la nueva sí, con todas las entradas.
+
+**10. Exportar e importar**
+- Hacer: pulsar **Exportar**, dejar el nombre `exportacion.pvlt`, escribir una contraseña de exportación (por ejemplo `demo-exportar-1`) dos veces y pulsar **Exportar**.
+- Después pulsar **Importar**, escribir `exportacion.pvlt` y la contraseña de exportación, y pulsar **Vista previa**.
+- Debe verse: todas las entradas marcadas como conflicto, porque ya están en la bóveda. Para cada una se elige **Omitir**, **Sustituir** o **Conservar ambas**, y **Aplicar** lo ejecuta en un solo guardado. Con «Conservar ambas» la entrada aparece dos veces en la lista.
+- Variante: con una contraseña de exportación equivocada, la importación se rechaza.
+
+**11. Recuperación tras un archivo dañado**
+- Hacer: detener `pvlt` con **Ctrl+C**. Dañar un bit de la bóveda y volver a arrancar:
+
+    ```
+    docker compose run --rm app python -m scripts.damage /data/boveda.pvlt
+    docker compose up
+    ```
+
+    El primer comando responde «Se invirtió un bit del byte 200 de /data/boveda.pvlt.»
+- Abrir el enlace nuevo que imprime la terminal.
+- Debe verse: «La bóveda está dañada, pero el respaldo está bien» y el botón **Restaurar el respaldo**. Al pulsarlo y confirmar, el archivo dañado se conserva aparte como `boveda.pvlt.damaged-<fecha>` y la bóveda se abre con la contraseña `demo-maestra-2` en su versión anterior. El respaldo es la versión previa al último guardado, así que la última operación (en este guion, la importación) no aparece.
+
+**12. Comprobar que no queda texto claro en disco**
+- Hacer: detener `pvlt` con **Ctrl+C** y buscar en todos los archivos del volumen el nombre de un sitio guardado, por ejemplo `correo.ejemplo`:
+
+    ```
+    docker compose run --rm app sh -c "grep -rl 'correo.ejemplo' /data || echo 'Sin coincidencias'"
+    ```
+
+- Debe verse: «Sin coincidencias». Si el sitio apareciera en claro en algún archivo, se imprimiría el nombre de ese archivo.
+
+## Pruebas automatizadas
 
 ```
 docker compose run --rm app pytest
@@ -122,7 +234,16 @@ docker compose run --rm app ruff check .
 docker compose run --rm app ruff format --check .
 ```
 
-La suite completa tarda entre tres y diez minutos, según el equipo, y cubre las pruebas T1 a T13 del diseño, los scripts de experimentos y el guion de demostración. Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
+| Comando | Qué hace | Resultado esperado |
+|---|---|---|
+| `pytest` | La suite completa, de tres a diez minutos según el equipo | `673 passed` |
+| `mypy` | Revisión de tipos en modo estricto | `Success: no issues found` |
+| `ruff check .` | Estilo y reglas de seguridad de bandit | `All checks passed!` |
+| `ruff format --check .` | Formato del código | `... files already formatted` |
+
+Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido. Para iterar, `pytest -m "not slow"` excluye las pruebas largas y `pytest -m "not browser"` las de navegador.
+
+La suite cubre las pruebas T1 a T13 del diseño, además de los experimentos y el guion de demostración:
 
 | Prueba | Qué comprueba | Dónde |
 |---|---|---|
@@ -140,62 +261,29 @@ La suite completa tarda entre tres y diez minutos, según el equipo, y cubre las
 | T12 | El portapapeles se vacía a los 20 s (Playwright) | `tests/web/` |
 | T13 | Sin cookie, sin CSRF, Host u Origin ajenos, HTML en notas, carga en iframe | `tests/web/` |
 
-Marcas útiles para iterar: `pytest -m "not slow"` excluye las pruebas largas y `pytest -m "not browser"` las de navegador.
-
-## Guion de demostración
-
-### Demostración automática
-
-```
-docker compose run --rm app python -m scripts.demo
-```
-
-Recorre en una carpeta temporal, con datos sintéticos y sin mostrar ninguna contraseña, cada escenario que exige el enunciado. Cada paso termina en una comprobación marcada como `[OK]` o `[FALLO]`:
-
-1. Crear, cerrar y reabrir bóvedas con 1, 100 y 500 entradas, y comprobar que ningún dato aparece en claro en el archivo.
-2. Agregar con el generador, buscar, consultar, modificar y eliminar, y el bloqueo por inactividad con un reloj simulado.
-3. Cambiar la contraseña maestra: la nueva abre la bóveda y el respaldo, la anterior ya no.
-4. Rechazar una contraseña incorrecta sin tocar ningún archivo ni crear una bóveda vacía. También un archivo truncado, una versión desconocida y una memoria de Argon2id fuera de límite.
-5. Detectar un bit alterado en la sal, el identificador, la generación, los nonces, W, C y sus etiquetas, con el resumen recalculado como haría un atacante. También un byte dañado sin recalcular el resumen y el contenido de otra bóveda.
-6. Simular una caída tras cada paso del guardado atómico y comprobar que siempre abre una versión íntegra. Después, dañar la bóveda y restaurar el respaldo.
-7. Exportar y comprobar que no hay texto claro, rechazar la importación con la contraseña equivocada y aplicar una importación con un conflicto.
-
-Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenario. `--config B` usa la configuración final de Argon2id en lugar de la A, y `--keep` conserva los archivos generados.
-
-### Demostración en la interfaz web
-
-1. `docker compose up` y abrir la URL impresa.
-2. **Crear** la bóveda con una contraseña maestra sintética, por ejemplo `demo-maestra-1`.
-3. **Nueva entrada** con el generador: elegir la longitud y las clases, ver la entropía y guardar. Agregar dos o tres entradas más.
-4. **Buscar** escribiendo en el cuadro de búsqueda. La lista se filtra sin pedir nada al servidor.
-5. **Ver**, **Copiar**, **Editar** y **Eliminar** sobre una entrada. El portapapeles se vacía a los 20 s. Si en ese momento la pestaña no tiene el foco, la página lo avisa y lo vacía al volver a ella.
-6. Escribir en las notas de una entrada `<img src=x onerror=alert(1)>` y comprobar que se muestra como texto.
-7. **Bloquear** y desbloquear con una contraseña equivocada: aparece «Contraseña incorrecta» y la bóveda no cambia. Desbloquear con la correcta.
-8. **Ajustes**: bajar el bloqueo por inactividad a 30 s, esperar y comprobar que la página vuelve a pedir la contraseña.
-9. **Cambiar la contraseña maestra**, bloquear y abrir con la nueva.
-10. **Exportar** a `exportacion.pvlt` con una contraseña de exportación. **Importar** ese mismo archivo: la vista previa marca todas las entradas como conflicto, y se puede elegir omitir, sustituir o conservar ambas.
-11. **Recuperación del respaldo**: detener el servidor con Ctrl+C, dañar un bit de la bóveda y volver a arrancar.
-
-    ```
-    docker compose run --rm app python -m scripts.damage /data/boveda.pvlt
-    docker compose up
-    ```
-
-    En Git Bash, la ruta `/data/...` se convierte en una ruta de Windows. Ahí hay que anteponer `MSYS_NO_PATHCONV=1` al primer comando, o usar PowerShell.
-
-    La página informa que la bóveda está dañada y ofrece restaurar el respaldo. Al confirmar, el archivo dañado se conserva como `boveda.pvlt.damaged-<fecha>` y la bóveda abre con la versión anterior.
-
 ## Experimentos
+
+Los experimentos miden el costo de Argon2id y de abrir y guardar, y producen los CSV y las gráficas del informe.
+
+| Experimento | Qué mide |
+|---|---|
+| **E1** | Tiempo de desbloqueo (mediana de 20) y pico de memoria para las configuraciones A, B y C de Argon2id, paralelismo de los carriles y costo de un ataque de diccionario |
+| **E2** | Abrir y guardar sin Argon2id con 1, 100 y 500 entradas (mediana de 50) |
+| **E3** | Tamaño del archivo frente al JSON sin cifrar |
+
+**Prueba rápida** (unos segundos, solo para comprobar que los scripts funcionan). Sus números no son válidos y quedan dentro del contenedor, en `bench/results/quick/`, sin tocar los resultados de referencia:
+
+```
+docker compose run --rm app python -m bench.run_all --quick
+```
+
+**Medición completa** (unos 5 minutos). Mientras mide conviene no ejecutar nada pesado en el equipo. En PowerShell, Linux o macOS:
 
 ```
 docker compose run --rm -e PVLT_BENCH_HOST="descripción del equipo" -v "${PWD}/bench/results:/app/bench/results" app python -m bench.run_all
 ```
 
-- **E1**: tiempo de desbloqueo (mediana de 20) y pico de memoria residente para las configuraciones A, B y C de Argon2id, paralelismo de los carriles y costo de un ataque de diccionario.
-- **E2**: abrir y guardar sin Argon2id con 1, 100 y 500 entradas (mediana de 50).
-- **E3**: tamaño del archivo frente al JSON sin cifrar.
-
-Tarda unos 5 minutos. Los CSV de resumen y las gráficas quedan en [`bench/results/`](bench/results/), junto con `sistema.csv`, que describe el equipo. `--quick` lo recorre con pocas repeticiones, solo para comprobar que funciona, y deja sus resultados en `bench/results/quick/` para no tocar los de referencia. Mientras se mide conviene no ejecutar nada pesado en el equipo.
+La opción `-v` hace que los resultados se escriban en la carpeta `bench/results/` del repositorio, así que **sustituye los resultados de referencia** del informe por los del equipo actual. Si eso no se quiere, basta con omitir `-v` y los resultados se quedan en el contenedor, que se borra al terminar. `PVLT_BENCH_HOST` es solo una descripción del equipo que se guarda en `sistema.csv`.
 
 Resultados en el equipo de referencia (Intel Core i5-10300H, Docker sobre WSL2):
 
@@ -205,7 +293,7 @@ Resultados en el equipo de referencia (Intel Core i5-10300H, Docker sobre WSL2):
 | **B (final)** | 256 MiB | 3 | 0,422 s | 290 MiB |
 | C | 2 GiB | 1 | 1,908 s | 2 082 MiB |
 
-La configuración final es B, la de mayor memoria que desbloquea en 1 s o menos en el equipo de referencia.
+La configuración final es B, la de mayor memoria que desbloquea en 1 s o menos en el equipo de referencia. Los CSV y las gráficas están en [`bench/results/`](bench/results/).
 
 ### Elegir la configuración en otro equipo
 
@@ -215,11 +303,86 @@ La regla de 1 s depende del equipo. Para aplicarla en el que va a usar `pvlt`:
 docker compose run --rm app python -m bench.calibrate
 ```
 
-Mide A, B y C con 5 desbloqueos cada una (menos de medio minuto en el equipo de referencia), muestra el tiempo y la memoria de cada una y recomienda la de mayor memoria que desbloquea en 1 s o menos. No modifica los resultados de referencia. `--skip-c` omite la configuración de 2 GiB en equipos con poca memoria.
+Mide A, B y C con 5 desbloqueos cada una (menos de medio minuto en el equipo de referencia), muestra el tiempo y la memoria de cada una y recomienda la de mayor memoria que desbloquea en 1 s o menos. No escribe ningún archivo. En equipos con poca memoria, `--skip-c` omite la configuración de 2 GiB.
 
 La configuración se elige al crear la bóveda, en el campo «Configuración de Argon2id» de la interfaz web o con `python -m pvlt.cli create --config A|B|C`. Queda guardada en la cabecera del archivo, así que cada bóveda se abre con la suya.
 
-## Estructura del repositorio
+## Uso del CLI
+
+El CLI es un punto de entrada mínimo para pruebas y experimentos. Usa la misma bóveda del volumen que la interfaz web, así que no deben ejecutarse a la vez. Las contraseñas se piden con `getpass`, sin eco, y el resto de datos sensibles (sitio, usuario, notas, búsqueda) se piden por teclado, nunca como argumento.
+
+Ejemplo de uso, con `pvlt` detenido:
+
+```
+docker compose run --rm app python -m pvlt.cli --help
+docker compose run --rm app python -m pvlt.cli add --generate
+docker compose run --rm app python -m pvlt.cli list --search
+```
+
+`add` pide la contraseña maestra, el sitio, el usuario y las notas, y genera la contraseña. `list --search` pide el texto a buscar y lista las coincidencias sin contraseñas. Si el volumen no tiene bóveda, se crea con `create`.
+
+| Orden | Qué hace |
+|---|---|
+| `create [--config A\|B\|C]` | Crea una bóveda vacía (por defecto con la configuración B) |
+| `unlock` | Abre la bóveda y la lista |
+| `list [--search]` | Lista sin contraseñas, con filtro opcional |
+| `get ID [--show]` | Muestra una entrada, y la contraseña solo con `--show` |
+| `add [--generate ...]` | Agrega una entrada, con contraseña escrita o generada |
+| `change-password` | Cambia la contraseña maestra |
+| `export DESTINO [--overwrite]` | Exporta a un archivo cifrado con contraseña propia |
+| `import ORIGEN [--on-conflict ask\|skip\|replace\|keep-both]` | Importa una exportación |
+| `generate` | Genera una contraseña sin tocar la bóveda |
+
+La ruta se elige con `--vault RUTA`. Sin ella se usa `$PVLT_VAULT_DIR/boveda.pvlt` (en el contenedor, `/data/boveda.pvlt`) o `./boveda.pvlt`. Los códigos de salida están documentados en `pvlt/cli.py`.
+
+## Instalación local sin Docker
+
+Con Python 3.12 o superior, desde la carpeta del repositorio:
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install --require-hashes -r requirements.txt
+pip install --no-deps -e .
+```
+
+En Linux o macOS, la segunda línea es `source .venv/bin/activate`.
+
+Quedan disponibles dos comandos:
+
+- `pvlt` arranca la interfaz web en `127.0.0.1` con un puerto aleatorio y abre el navegador. Acepta `--vault RUTA`, `--port N` y `--no-browser`. Sin `--vault`, la bóveda es `boveda.pvlt` en la carpeta actual.
+- `pvlt-cli` es el CLI descrito arriba.
+
+Fuera de Docker no se garantiza la semántica POSIX de `fsync` y `os.replace` ni los permisos 0600. Windows y macOS son compatibles, pero las mediciones y las pruebas de fallo de referencia se hicieron en el contenedor.
+
+## Problemas frecuentes
+
+| Síntoma | Causa y solución |
+|---|---|
+| `cannot connect to the Docker daemon` o similar | Docker Desktop no está abierto. Abrirlo, esperar a que indique que está en marcha y repetir el comando |
+| «Sesión no disponible. El enlace de inicio ya se usó o no es válido» | El enlace sirve una sola vez. Detener `pvlt` con Ctrl+C, arrancarlo de nuevo y abrir el enlace nuevo |
+| «Sesión no disponible» sin más explicación al abrir la página | Se abrió la dirección sin la parte `#t=...`, o en una pestaña nueva. Copiar la URL completa de la terminal, o reiniciar `pvlt` si ese enlace ya se usó |
+| `port is already allocated` al arrancar | Otro programa, o un `pvlt` anterior, usa el puerto 8765. Cerrar la otra terminal o ejecutar `docker compose down` |
+| En Git Bash, un comando con `/data` responde `cannot access 'C:/Program Files/Git/data'` o no encuentra el archivo | Git Bash convierte `/data/...` en una ruta de Windows. Anteponer `MSYS_NO_PATHCONV=1` al comando (por ejemplo `MSYS_NO_PATHCONV=1 docker compose run --rm app ls -l /data`), o usar PowerShell |
+| Los cambios en el código no se notan | Falta `docker compose build`. El código se copia dentro de la imagen |
+| La configuración C falla o el sistema se queda sin memoria | Docker tiene menos de unos 2,5 GiB asignados. Aumentar la memoria en Docker Desktop o usar `--skip-c` al calibrar |
+| La página vuelve a pedir la contraseña sola | Es el bloqueo por inactividad. Se ajusta en **Ajustes** |
+
+## Cómo funciona por dentro
+
+### Criptografía
+
+La contraseña maestra deriva una clave de envoltura (KEK) con **Argon2id v1.3** (256 MiB, 3 pasadas, 4 carriles, sal de 128 bits). La KEK cifra con **ChaCha20-Poly1305** una clave de datos (DEK) aleatoria que se renueva en cada guardado y cifra el contenido. La cabecera completa va como dato asociado con etiquetas de dominio separadas. Todo pasa por la biblioteca `cryptography` (pyca), sin primitivas propias.
+
+```
+KEK = Argon2id(contraseña, sal, m, t, p)
+W   = ChaCha20-Poly1305(KEK).cifrar(N_w, DEK,     "PVLT/v1/wrap" || Hdr)
+C   = ChaCha20-Poly1305(DEK).cifrar(N_d, pad(P),  "PVLT/v1/data" || Hdr || W)
+```
+
+El formato binario, el protocolo y el modelo de adversario están en [`docs/diseno.md`](docs/diseno.md). El análisis completo está en el informe final ([`docs/informe/`](docs/informe/)).
+
+### Estructura del repositorio
 
 ```
 pvlt/
@@ -237,15 +400,15 @@ docs/         especificación técnica, Entregable 1 e informe final
 
 Las dependencias van en un solo sentido: `web → vault → (crypto, storage)`. Una prueba de humo lo verifica.
 
-## Límites de seguridad
+### Límites de seguridad
 
 `pvlt` protege la bóveda frente a quien copia o modifica el archivo cuando la bóveda está cerrada, frente a fallos al guardar y frente a otros usuarios locales y páginas web que intenten usar el servidor. No protege frente a malware, keyloggers, extensiones maliciosas ni volcados de memoria con la bóveda abierta, ni frente a una contraseña maestra débil. El retroceso a una copia antigua válida solo se advierte. Las limitaciones completas están en el informe.
 
-## Documentación
+## Documentación e informe
 
 | Archivo | Contenido |
 |---|---|
-| [`docs/informe/`](docs/informe/) | Informe final (fuente LaTeX y PDF) |
+| [`docs/informe/informe.pdf`](docs/informe/informe.pdf) | Informe final (12 páginas), con su fuente LaTeX en la misma carpeta |
 | [`docs/diseno.md`](docs/diseno.md) | Especificación técnica: formato, protocolo, seguridad web, pruebas y experimentos |
 | [`docs/entregable1/`](docs/entregable1/) | Entregable 1 (diseño y estado del arte) |
 
@@ -257,8 +420,13 @@ Todos los datos de prueba y de demostración son sintéticos.
 
 ```
 docker build -t pvlt-informe docs/informe
+```
+
+Después, para generar el PDF y borrar los archivos auxiliares:
+
+```
 docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -pdf informe.tex
 docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -c
 ```
 
-El segundo comando genera el PDF y el tercero borra los archivos auxiliares. Las gráficas se leen directamente de `bench/results/`.
+Las gráficas se leen directamente de `bench/results/`.
