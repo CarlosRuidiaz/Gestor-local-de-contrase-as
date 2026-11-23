@@ -209,7 +209,7 @@ Cada DEK cifra un único mensaje, así que bajo ella la unicidad del nonce es es
 
 \subsection{Por qué estas elecciones y no otras}\label{sec:justificacion}
 
-\textbf{Función de derivación.} Un gestor local enfrenta el peor caso de los ataques a contraseñas. Quien copia el archivo prueba candidatas fuera de línea, sin que nada limite los intentos, con un costo del orden de $|D|$ sobre un diccionario $D$~\cite[§18.4.4]{boneh}~\cite{protocols}. La única defensa es encarecer cada intento, y la tabla~\ref{tab:alternativas} resume las opciones según~\cite[§18.4]{boneh} y~\cite[§1]{rfc9106}. La sal de 128 bits anula las tablas precalculadas pero no el diccionario directo. Se descartó además una sal secreta (\emph{pepper}), porque en un gestor local no tendría dónde guardarse aparte del propio archivo.
+\textbf{Función de derivación.} Un gestor local enfrenta el peor caso de los ataques a contraseñas. Quien copia el archivo prueba candidatas fuera de línea, sin que nada limite los intentos, con un costo del orden de $|D|$ sobre un diccionario $D$~\cite[§18.4.4]{boneh}~\cite{protocols}. La única defensa es encarecer cada intento, y la tabla~\ref{tab:alternativas} resume las opciones según~\cite[§18.4]{boneh} y~\cite[§1]{rfc9106}. Usada como KDF, Argon2id convierte además la contraseña en una clave simétrica uniforme de 32 bytes~\cite[§8.10]{boneh}. La sal de 128 bits anula las tablas precalculadas pero no el diccionario directo. Se descartó además una sal secreta (\emph{pepper}), porque en un gestor local no tendría dónde guardarse aparte del propio archivo.
 
 \begin{table}[h]
 \centering\small
@@ -479,7 +479,7 @@ Las limitaciones que quedan son las propias de una aplicación local escrita en 
 
 \begin{thebibliography}{9}\small
 \setlength{\itemsep}{1pt}
-\bibitem{boneh} Boneh, D. y Shoup, V. (2023). \emph{A Graduate Course in Applied Cryptography}, v0.6, §§9.5 y 18.4.4.
+\bibitem{boneh} Boneh, D. y Shoup, V. (2023). \emph{A Graduate Course in Applied Cryptography}, v0.6, §§8.10, 9.5 y 18.4.4.
 \bibitem{rfc9106} Biryukov, A., Dinu, D., Khovratovich, D. y Josefsson, S. (2021). \emph{Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications}. RFC 9106.
 \bibitem{rfc8439} Nir, Y. y Langley, A. (2018). \emph{ChaCha20 and Poly1305 for IETF Protocols}. RFC 8439.
 \bibitem{sp80038d} Dworkin, M. (2007). \emph{Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC}. NIST SP 800-38D.
