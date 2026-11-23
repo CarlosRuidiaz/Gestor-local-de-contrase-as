@@ -70,8 +70,6 @@ docker compose run --rm app pytest
 
 Debe terminar con una línea como `673 passed`. Más detalles en [Pruebas automatizadas](#pruebas-automatizadas).
 
-> Si se modifica el código, hay que repetir `docker compose build`. El código se copia dentro de la imagen y no se lee desde la carpeta.
-
 ## Primer uso de la interfaz web
 
 **1. Arrancar `pvlt`:**
@@ -311,7 +309,7 @@ docker compose run --rm app ruff format --check .
 | `ruff check .` | Estilo y reglas de seguridad de bandit | `All checks passed!` |
 | `ruff format --check .` | Formato del código | `... files already formatted` |
 
-Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido. Para iterar, `pytest -m "not slow"` excluye las pruebas largas y `pytest -m "not browser"` las de navegador.
+Las pruebas funcionales usan la configuración A de Argon2id (64 MiB) para ir más rápido.
 
 La suite cubre las pruebas T1 a T13 del diseño, además de los experimentos y el guion de demostración:
 
@@ -434,7 +432,6 @@ Fuera de Docker no se garantiza la semántica POSIX de `fsync` y `os.replace` ni
 | «Sesión no disponible» sin más explicación al abrir la página | Se abrió la dirección sin la parte `#t=...`, o en una pestaña nueva. Copiar la URL completa de la terminal, o reiniciar `pvlt` si ese enlace ya se usó |
 | `port is already allocated` al arrancar | Otro programa, o un `pvlt` anterior, usa el puerto 8765. Cerrar la otra terminal o ejecutar `docker compose down` |
 | En Git Bash, un comando con `/data` responde `cannot access 'C:/Program Files/Git/data'` o no encuentra el archivo | Git Bash convierte `/data/...` en una ruta de Windows. Anteponer `MSYS_NO_PATHCONV=1` al comando (por ejemplo `MSYS_NO_PATHCONV=1 docker compose run --rm app ls -l /data`), o usar PowerShell |
-| Los cambios en el código no se notan | Falta `docker compose build`. El código se copia dentro de la imagen |
 | La configuración C falla o el sistema se queda sin memoria | Docker tiene menos de unos 2,5 GiB asignados. Aumentar la memoria en Docker Desktop o usar `--skip-c` al calibrar |
 | En Brave, el portapapeles no se vacía a los 20 s, o aparece «quiere ver el texto y las imágenes copiados en el portapapeles» | Brave pide un permiso de portapapeles para que la página pueda vaciarlo sin un clic. Pulsar **Permitir**. Si ya se bloqueó, se cambia con el icono a la izquierda de la dirección, en los permisos del sitio. `pvlt` nunca lee el portapapeles |
 | La página vuelve a pedir la contraseña sola | Es el bloqueo por inactividad. Se ajusta en **Ajustes** |
@@ -479,25 +476,8 @@ Las dependencias van en un solo sentido: `web → vault → (crypto, storage)`. 
 
 | Archivo | Contenido |
 |---|---|
-| [`docs/informe/informe.pdf`](docs/informe/informe.pdf) | Informe final (12 páginas), con su fuente LaTeX en la misma carpeta |
+| [`docs/informe/informe.pdf`](docs/informe/informe.pdf) | Informe final (12 páginas) |
 | [`docs/diseno.md`](docs/diseno.md) | Especificación técnica: formato, protocolo, seguridad web, pruebas y experimentos |
 | [`docs/entregable1/`](docs/entregable1/) | Entregable 1 (diseño y estado del arte) |
 
 Todos los datos de prueba y de demostración son sintéticos.
-
-### Compilar el informe
-
-`docs/informe/informe.pdf` ya está compilado. Para regenerarlo tras cambiar `informe.tex` hace falta una imagen con LaTeX, que se construye una vez:
-
-```
-docker build -t pvlt-informe docs/informe
-```
-
-Después, para generar el PDF y borrar los archivos auxiliares:
-
-```
-docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -pdf informe.tex
-docker run --rm -v "${PWD}:/work" -w /work/docs/informe pvlt-informe latexmk -c
-```
-
-Las gráficas se leen directamente de `bench/results/`.
