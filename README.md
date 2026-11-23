@@ -101,7 +101,7 @@ El enlace sirve una sola vez. Ctrl+C cierra pvlt y bloquea la bóveda.
 
 Aparece la pantalla principal con la lista vacía y los botones **Nueva entrada**, **Generador**, **Contraseña maestra**, **Exportar**, **Importar** y **Ajustes**. Arriba están el botón **Bloquear** y la cuenta atrás «Bloqueo automático en N s».
 
-**4. Usarla.** [La demostración en la interfaz web](#demostración-en-la-interfaz-web) recorre cada operación paso a paso.
+**4. Usarla.** [La parte 2 del guion de demostración](#parte-2-demostración-en-la-interfaz-web) recorre cada operación paso a paso.
 
 **5. Cerrar.** Pulsar **Ctrl+C** en la terminal donde corre `docker compose up`. La terminal muestra «pvlt cerrado. La bóveda quedó bloqueada.» Para volver a entrar se repite desde el paso 1. Cada arranque imprime un enlace nuevo, y la bóveda creada sigue ahí.
 
@@ -120,26 +120,36 @@ Aparece la pantalla principal con la lista vacía y los botones **Nueva entrada*
 
 ## Guion de demostración
 
-La demostración tiene dos partes. La automática recorre en un minuto todos los escenarios que pide el enunciado y comprueba cada resultado. La manual, en la interfaz web, muestra lo mismo como lo vería un usuario. Todos los datos son sintéticos: **no se debe usar ninguna contraseña real**.
+La demostración tiene dos partes. La automática recorre en un minuto todos los escenarios que pide el enunciado y comprueba cada resultado. La manual, en la interfaz web, muestra lo mismo como lo vería un usuario y tarda unos 15 minutos. Todos los datos son sintéticos: **no se debe usar ninguna contraseña real**.
 
-### Preparar una demostración desde cero
+### Antes de la demostración
 
-Para empezar con una bóveda nueva, sin restos de pruebas anteriores:
+**Navegador.** Sirven Chrome, Edge, Firefox o Brave. En **Brave**, la primera vez que se copia una contraseña aparece el aviso «http://127.0.0.1:8765 quiere ver el texto y las imágenes copiados en el portapapeles». Hay que pulsar **Permitir**. `pvlt` nunca lee el portapapeles, pero Brave pide ese permiso para dejar que la página lo vacíe a los 20 s. Si se bloquea, el vaciado automático no puede completarse (ver el paso 4).
+
+**Empezar con una bóveda nueva.** Si en el equipo ya hubo pruebas anteriores:
 
 ```
 docker compose down -v
 docker compose build
 ```
 
-El primer comando borra el volumen de datos (ver la advertencia de la sección anterior).
+El primer comando borra el volumen de datos con la bóveda que hubiera (ver la advertencia de [Primer uso](#primer-uso-de-la-interfaz-web)). Para conservar una bóveda propia, en lugar de borrarla se puede añadir `-p pvlt-demo` después de `docker compose` en **todos** los comandos de la demostración, por ejemplo `docker compose -p pvlt-demo up`. Así usan un volumen aparte. En ese caso hay que detener antes cualquier otro `pvlt`, porque el puerto 8765 es el mismo.
 
-### Demostración automática
+**Datos que usa el guion.** Los pasos encadenan estos valores, así que conviene usarlos tal cual:
+
+| Dato | Valor |
+|---|---|
+| Contraseña maestra | `demo-maestra-1`, y desde el paso 9 `demo-maestra-2` |
+| Contraseña de exportación | `demo-exportar-1` |
+| Entradas (sitio y usuario) | `correo.ejemplo` y `ana.demo`, `banco.ejemplo` y `luis.demo`, `foro.ejemplo` y `eva.demo` |
+
+### Parte 1: demostración automática
 
 ```
 docker compose run --rm app python -m scripts.demo
 ```
 
-Trabaja en una carpeta temporal dentro del contenedor, así que no toca la bóveda del volumen. No muestra ninguna contraseña. Cada comprobación imprime `[OK]` o `[FALLO]`, y al final aparece «Todas las comprobaciones pasaron.» Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenario.
+Trabaja en una carpeta temporal dentro del contenedor, así que no toca la bóveda del volumen. No muestra ninguna contraseña. Cada comprobación imprime `[OK]` o `[FALLO]`, son 49 en total, y al final aparece «Todas las comprobaciones pasaron.» Tarda alrededor de un minuto, casi todo en los 500 guardados del primer escenario.
 
 | Escenario | Qué comprueba |
 |---|---|
@@ -153,78 +163,137 @@ Trabaja en una carpeta temporal dentro del contenedor, así que no toca la bóve
 
 Opciones: `--config B` usa la configuración final de Argon2id en lugar de la A, y `--keep` conserva los archivos generados para inspeccionarlos.
 
-### Demostración en la interfaz web
+### Parte 2: demostración en la interfaz web
 
-Antes de empezar, arrancar `pvlt` con `docker compose up` y abrir el enlace como se explica en [Primer uso](#primer-uso-de-la-interfaz-web). Cada paso dice qué hacer y qué debe verse.
+Cada paso dice qué hacer, qué debe verse (con los textos exactos de la página) y, cuando aplica, una variante que muestra el rechazo de una acción incorrecta. Al final de algunos pasos se indica cómo debe quedar la lista, para comprobar que nada se perdió por el camino.
+
+**0. Arrancar y abrir el enlace**
+- Hacer: en una terminal, `docker compose up`. Copiar la URL completa que imprime, incluida la parte `#t=...`, y pegarla en el navegador.
+- Debe verse: en la terminal, «pvlt escucha en http://127.0.0.1:8765/», la URL y «El enlace sirve una sola vez.». En el navegador, la pantalla «Crear bóveda», y la parte `#t=...` desaparece de la barra de direcciones.
+- Variante: abrir `http://127.0.0.1:8765/` en otra pestaña. Aparece «Sesión no disponible», porque el enlace ya se usó. Recargar la primera pestaña (F5) sí conserva la sesión.
 
 **1. Crear la bóveda**
-- Hacer: escribir `demo-maestra-1` como contraseña maestra, repetirla, dejar la configuración B y pulsar **Crear**.
-- Debe verse: la pantalla principal con la lista vacía.
-- Variante: si las dos contraseñas no coinciden, aparece «Las contraseñas no coinciden» y no se crea nada.
+- Hacer: escribir `demo-maestra-1` y, en la repetición, algo distinto. Pulsar **Crear**.
+- Debe verse: «Las contraseñas no coinciden», y no se crea nada.
+- Hacer: escribir `demo-maestra-1` en los dos campos, dejar la configuración **B (recomendada)** y pulsar **Crear**.
+- Debe verse: «Bóveda creada.», la lista vacía y arriba «Bloqueo automático en 300 s».
 
 **2. Agregar entradas con el generador**
-- Hacer: pulsar **Nueva entrada** y escribir un sitio (por ejemplo `correo.ejemplo`) y un usuario. Junto al campo de contraseña pulsar **Generar**.
-- Debe verse: la contraseña generada en el campo y su entropía en el aviso. Al pulsar **Guardar** aparece «Entrada guardada.» y la entrada en la lista. Repetir con dos o tres sitios más.
-- Generador aparte: el botón **Generador** de la barra permite elegir la longitud (8 a 128) y las clases de caracteres, y muestra la entropía en bits. **Guardar como predeterminado** fija esas opciones para el botón **Generar** de las entradas.
+- Hacer: pulsar **Nueva entrada**, escribir el sitio `correo.ejemplo` y el usuario `ana.demo`, y pulsar **Generar** junto al campo de contraseña. Pulsar **Guardar**.
+- Debe verse: la contraseña generada en el campo y su entropía en el aviso. Al guardar, «Entrada guardada.» y la entrada en la lista.
+- Hacer: repetir con `banco.ejemplo` y `luis.demo`, y con `foro.ejemplo` y `eva.demo`.
+- Hacer: pulsar **Generador** en la barra, poner longitud `32`, desmarcar **Símbolos** y pulsar **Generar**.
+- Debe verse: una contraseña de 32 letras y dígitos y «Entropía: 190,5 bits», que es 32 · log₂ 62. **Guardar como predeterminado** fija estas opciones para el botón **Generar** de las entradas.
+- Estado: tres entradas, ordenadas por sitio (`banco`, `correo`, `foro`) y con «3 de 3 entradas».
 
 **3. Buscar**
-- Hacer: escribir parte de un sitio o usuario en el cuadro de búsqueda.
-- Debe verse: la lista se filtra mientras se escribe, sin pedir nada al servidor.
+- Hacer: escribir `ban` en el cuadro de búsqueda, y después `eva`.
+- Debe verse: «1 de 3 entradas», primero con `banco.ejemplo` y después con `foro.ejemplo`. Busca en sitio y usuario, y filtra mientras se escribe sin pedir nada al servidor. Borrar la búsqueda al terminar.
 
 **4. Consultar y copiar**
-- Hacer: pulsar **Ver** en una fila. En el detalle, pulsar **Ver** para mostrar la contraseña y **Copiar** para copiarla. Pegarla en un editor de texto antes de 20 s.
-- Debe verse: el aviso «se vaciará en 20 s». Pasados 20 s aparece «Portapapeles vaciado.» y al pegar de nuevo no sale nada.
-- Variante: copiar, cambiar a otra ventana y esperar más de 20 s. El navegador no permite vaciar el portapapeles sin foco, así que al volver a la pestaña aparece un aviso de que el portapapeles todavía tiene la contraseña y el vaciado se completa en ese momento.
+- Hacer: pulsar **Ver** en la fila de `correo.ejemplo`. En el detalle, pulsar **Ver** para mostrar la contraseña, que es la misma que se generó en el paso 2. Pulsar **Copiar** y pegar en un editor de texto, por ejemplo el Bloc de notas.
+- Debe verse: «Contraseña copiada. El portapapeles se vaciará en 20 s (no ocurre si cierras la pestaña antes).», y al pegar aparece la contraseña.
+- Hacer: volver a la pestaña de `pvlt`, pulsar **Copiar** otra vez y **quedarse en esa pestaña** 20 s sin cambiar de ventana. Después, pegar de nuevo en el editor.
+- Debe verse: «Portapapeles vaciado.» en la página, y al pegar no sale nada.
+- En Brave: si aparece el aviso de permiso del portapapeles, pulsar **Permitir**. Mientras ese aviso esté abierto, el vaciado queda en espera, y se completa en cuanto se permite.
+- Variante: copiar, cambiar a otra ventana y esperar más de 20 s. El navegador no deja vaciar el portapapeles si la pestaña no tiene el foco, así que la página muestra un aviso fijo: «El portapapeles todavía tiene la contraseña: el navegador no deja vaciarlo mientras esta pestaña no tiene el foco. Se vaciará al volver a ella.» Al volver a la pestaña y hacer clic en ella, el portapapeles se vacía.
 
 **5. Modificar y eliminar**
-- Hacer: en el detalle, pulsar **Editar**, cambiar el usuario o las notas y **Guardar**. Después, en otra entrada, pulsar **Eliminar** y confirmar.
-- Debe verse: el cambio en la lista, y la entrada eliminada desaparece tras la pregunta «¿Eliminar esta entrada? No se puede deshacer.»
-- Variante: un sitio vacío o de solo espacios se rechaza al guardar.
+- Hacer: en el detalle de `correo.ejemplo`, pulsar **Editar**, cambiar el usuario a `ana.editada` y pulsar **Guardar**.
+- Debe verse: «Entrada guardada.», el usuario nuevo en la lista y la fecha de «Modificada» actualizada.
+- Variante: pulsar **Editar**, borrar el sitio, escribir solo espacios y pulsar **Guardar**. Aparece «Dato inválido: sitio» y la lista no cambia. Pulsar **Cancelar**.
+- Hacer: abrir el detalle de `foro.ejemplo` y pulsar **Eliminar**.
+- Debe verse: la pregunta «¿Eliminar esta entrada? No se puede deshacer.». Al aceptar, «Entrada eliminada.».
+- Estado: dos entradas, `banco.ejemplo` con `luis.demo` y `correo.ejemplo` con `ana.editada`.
 
 **6. HTML en las notas se muestra como texto**
-- Hacer: editar una entrada y escribir en las notas `<img src=x onerror=alert(1)>`. Guardar.
-- Debe verse: el texto tal cual en el detalle, sin imagen ni ventana de alerta.
+- Hacer: editar `correo.ejemplo` y escribir en las notas `<img src=x onerror=alert(1)>`. Guardar.
+- Debe verse: el texto tal cual en el campo «Notas» del detalle, sin imagen rota ni ventana de alerta.
 
 **7. Bloquear y contraseña incorrecta**
-- Hacer: pulsar **Bloquear**. Escribir una contraseña equivocada y pulsar **Desbloquear**.
-- Debe verse: «Contraseña incorrecta». La bóveda no cambia y no se crea ninguna vacía. Después, con `demo-maestra-1`, se abre con todas las entradas.
+- Hacer: pulsar **Bloquear**.
+- Debe verse: la pantalla «Desbloquear», sin ningún sitio, usuario ni contraseña a la vista.
+- Hacer: escribir `demo-equivocada` y pulsar **Desbloquear**.
+- Debe verse: «Contraseña incorrecta». La bóveda no se modifica ni se crea otra vacía.
+- Comprobación en disco (opcional): en otra terminal, con `pvlt` en marcha, ejecutar este comando antes y después del intento fallido. Los resúmenes y la lista de archivos deben salir idénticos.
+
+    ```
+    docker compose exec app sh -c "sha256sum /data/* && ls /data"
+    ```
+
+- Hacer: escribir `demo-maestra-1` y pulsar **Desbloquear**.
+- Debe verse: las dos entradas de antes.
 
 **8. Bloqueo por inactividad**
-- Hacer: pulsar **Ajustes**, escribir `30` en «Bloqueo por inactividad, en segundos» y **Guardar**. No tocar la página durante 30 s.
-- Debe verse: la cuenta atrás de arriba pasa a 30 s al guardar, y al llegar a cero la página vuelve a pedir la contraseña con el aviso «La bóveda se bloqueó por inactividad.», que se ve durante unos segundos.
-- Al terminar conviene volver a poner `300`, para que no se bloquee durante el resto de la demostración.
+- Hacer: pulsar **Ajustes**, escribir `30` en «Bloqueo por inactividad, en segundos (30 a 3600)» y pulsar **Guardar**. No tocar la página durante unos 35 s.
+- Debe verse: «Ajustes guardados.» y la cuenta atrás de arriba pasa a «Bloqueo automático en 30 s». Al llegar a cero, la página vuelve a «Desbloquear» y muestra durante unos segundos «La bóveda se bloqueó por inactividad.».
+- Hacer: desbloquear con `demo-maestra-1`, volver a **Ajustes**, poner `300` y **Guardar**, para que no se bloquee durante el resto de la demostración.
 
 **9. Cambiar la contraseña maestra**
-- Hacer: pulsar **Contraseña maestra**, escribir la actual (`demo-maestra-1`) y una nueva (`demo-maestra-2`) dos veces, y pulsar **Cambiar**. Después **Bloquear**.
-- Debe verse: la antigua ya no abre la bóveda («Contraseña incorrecta») y la nueva sí, con todas las entradas.
+- Hacer: pulsar **Contraseña maestra**, escribir la actual (`demo-maestra-1`) y dos veces la nueva (`demo-maestra-2`), y pulsar **Cambiar**.
+- Debe verse: «Contraseña maestra cambiada. El respaldo también usa la nueva.».
+- Hacer: pulsar **Bloquear** e intentar desbloquear con `demo-maestra-1`.
+- Debe verse: «Contraseña incorrecta». Con `demo-maestra-2` se abre con las dos entradas.
 
 **10. Exportar e importar**
-- Hacer: pulsar **Exportar**, dejar el nombre `exportacion.pvlt`, escribir una contraseña de exportación (por ejemplo `demo-exportar-1`) dos veces y pulsar **Exportar**.
-- Debe verse: «Exportadas N entradas a exportacion.pvlt.»
-- Después pulsar **Importar**, elegir `exportacion.pvlt` en la lista de archivos, escribir la contraseña de exportación y pulsar **Vista previa**.
-- Debe verse: «El archivo tiene N entradas, N en conflicto.», porque todas ya están en la bóveda. Para cada una se elige **Omitir**, **Sustituir** o **Conservar ambas** en la columna «Decisión», y **Aplicar** lo ejecuta en un solo guardado. El aviso resume cuántas se añadieron, sustituyeron, duplicaron u omitieron, y con «Conservar ambas» la entrada aparece dos veces en la lista.
-- Variante: con una contraseña de exportación equivocada aparece «Contraseña incorrecta» y no se muestra la vista previa.
+- Hacer: pulsar **Exportar**, dejar el nombre `exportacion.pvlt`, escribir dos veces `demo-exportar-1` y pulsar **Exportar**.
+- Debe verse: «Exportadas 2 entradas a exportacion.pvlt.».
+- Hacer: pulsar **Importar**, elegir `exportacion.pvlt` en la lista de archivos, escribir `demo-equivocada` y pulsar **Vista previa**.
+- Debe verse: «Contraseña incorrecta», y no aparece ninguna vista previa.
+- Hacer: escribir `demo-exportar-1` y pulsar **Vista previa**.
+- Debe verse: «El archivo tiene 2 entradas, 2 en conflicto.» y una tabla con Sitio, Usuario, Conflicto («mismo identificador») y Decisión.
+- Hacer: en la columna «Decisión», elegir **Conservar ambas** para `correo.ejemplo` y **Sustituir** para `banco.ejemplo`. Pulsar **Aplicar**.
+- Debe verse: «Importación aplicada: 0 añadidas, 1 sustituidas, 1 duplicadas con identificador nuevo, 0 omitidas.».
+- Estado: tres entradas, `banco.ejemplo` una vez y `correo.ejemplo` dos veces.
 
 **11. Recuperación tras un archivo dañado**
-- Hacer: detener `pvlt` con **Ctrl+C**. Dañar un bit de la bóveda y volver a arrancar:
+- Hacer: detener `pvlt` con **Ctrl+C** en su terminal.
+- Debe verse: «pvlt cerrado. La bóveda quedó bloqueada.».
+- Hacer: dañar un bit de la bóveda y volver a arrancar:
 
     ```
     docker compose run --rm app python -m scripts.damage /data/boveda.pvlt
     docker compose up
     ```
 
-    El primer comando responde «Se invirtió un bit del byte 200 de /data/boveda.pvlt.»
-- Abrir el enlace nuevo que imprime la terminal.
-- Debe verse: «La bóveda está dañada, pero el respaldo está bien» y el botón **Restaurar el respaldo**. Al pulsarlo y confirmar, aparece «Respaldo restaurado», el archivo dañado se conserva aparte como `boveda.pvlt.damaged-<fecha>` y la bóveda se abre con la contraseña `demo-maestra-2` en su versión anterior. El respaldo es la versión previa al último guardado, así que la última operación (en este guion, la importación) no aparece.
+- Debe verse: el primer comando responde «Se invirtió un bit del byte 200 de /data/boveda.pvlt.».
+- Hacer: copiar el enlace nuevo que imprime la terminal y pegarlo en la misma pestaña de antes.
+- Debe verse: la página se recarga sola y muestra «La bóveda está dañada, pero el respaldo está bien (generación N). Al restaurarlo el archivo actual se conserva aparte.» con el botón **Restaurar el respaldo**.
+- Hacer: pulsar **Restaurar el respaldo** y aceptar la pregunta «¿Restaurar el respaldo? El archivo actual se conserva aparte para su análisis.».
+- Debe verse: «Respaldo restaurado. El archivo anterior se guardó como boveda.pvlt.damaged-<fecha>.».
+- Hacer: desbloquear con `demo-maestra-2`.
+- Estado: dos entradas, `banco.ejemplo` y `correo.ejemplo` una vez. El respaldo es la versión previa al último guardado, así que la importación del paso 10 no aparece. Nada más se perdió.
 
-**12. Comprobar que no queda texto claro en disco**
-- Hacer: detener `pvlt` con **Ctrl+C** y buscar en todos los archivos del volumen el nombre de un sitio guardado, por ejemplo `correo.ejemplo`:
+**12. Comprobar los archivos en disco**
+- Hacer: detener `pvlt` con **Ctrl+C** y listar los archivos del volumen:
 
     ```
-    docker compose run --rm app sh -c "grep -rl 'correo.ejemplo' /data || echo 'Sin coincidencias'"
+    docker compose run --rm app ls -l /data
     ```
 
-- Debe verse: «Sin coincidencias». Si el sitio apareciera en claro en algún archivo, se imprimiría el nombre de ese archivo.
+- Debe verse: `boveda.pvlt`, `boveda.pvlt.bak`, `boveda.pvlt.damaged-<fecha>`, `boveda.pvlt.lock` y `exportacion.pvlt`, todos con permisos `-rw-------` (solo el dueño puede leerlos) y ningún temporal `.tmp`.
+- Hacer: buscar en todos esos archivos los datos que se escribieron durante la demostración:
+
+    ```
+    docker compose run --rm app sh -c 'for s in correo.ejemplo banco.ejemplo ana.editada luis.demo demo-maestra demo-exportar; do grep -rl $s /data || echo $s: sin coincidencias; done'
+    ```
+
+- Debe verse: «sin coincidencias» para los seis valores. Si alguno apareciera en claro, se imprimiría el nombre del archivo que lo contiene.
+
+### Qué requisito demuestra cada paso
+
+| Requisito del enunciado | Pasos de la interfaz web | Escenario automático |
+|---|---|---|
+| Crear, desbloquear y bloquear una bóveda | 0, 1, 7 | 1 |
+| Agregar, buscar, consultar, modificar y eliminar | 2, 3, 4, 5 | 2 |
+| Generador configurable y bloqueo por inactividad | 2, 8 | 2 |
+| Cambio de contraseña maestra sin perder registros | 9 | 3 |
+| Contraseña incorrecta sin crear ni sobrescribir nada | 7, 9 | 4 |
+| Detectar modificaciones del archivo | 11 | 5 |
+| Recuperación tras un fallo durante el guardado | 11 | 6 |
+| Exportar e importar solo cifrado | 10, 12 | 7 |
+| Sin copia legible en disco | 12 | 1 |
+| Bóvedas de 1, 100 y 500 entradas | | 1 |
 
 ## Pruebas automatizadas
 
@@ -367,6 +436,7 @@ Fuera de Docker no se garantiza la semántica POSIX de `fsync` y `os.replace` ni
 | En Git Bash, un comando con `/data` responde `cannot access 'C:/Program Files/Git/data'` o no encuentra el archivo | Git Bash convierte `/data/...` en una ruta de Windows. Anteponer `MSYS_NO_PATHCONV=1` al comando (por ejemplo `MSYS_NO_PATHCONV=1 docker compose run --rm app ls -l /data`), o usar PowerShell |
 | Los cambios en el código no se notan | Falta `docker compose build`. El código se copia dentro de la imagen |
 | La configuración C falla o el sistema se queda sin memoria | Docker tiene menos de unos 2,5 GiB asignados. Aumentar la memoria en Docker Desktop o usar `--skip-c` al calibrar |
+| En Brave, el portapapeles no se vacía a los 20 s, o aparece «quiere ver el texto y las imágenes copiados en el portapapeles» | Brave pide un permiso de portapapeles para que la página pueda vaciarlo sin un clic. Pulsar **Permitir**. Si ya se bloqueó, se cambia con el icono a la izquierda de la dirección, en los permisos del sitio. `pvlt` nunca lee el portapapeles |
 | La página vuelve a pedir la contraseña sola | Es el bloqueo por inactividad. Se ajusta en **Ajustes** |
 
 ## Cómo funciona por dentro
