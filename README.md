@@ -191,7 +191,7 @@ Antes de empezar, arrancar `pvlt` con `docker compose up` y abrir el enlace como
 
 **8. Bloqueo por inactividad**
 - Hacer: pulsar **Ajustes**, escribir `30` en «Bloqueo por inactividad, en segundos» y **Guardar**. No tocar la página durante 30 s.
-- Debe verse: la cuenta atrás de arriba pasa a 30 s al guardar, y al llegar a cero la página vuelve a pedir la contraseña con el aviso «La bóveda se bloqueó por inactividad.»
+- Debe verse: la cuenta atrás de arriba pasa a 30 s al guardar, y al llegar a cero la página vuelve a pedir la contraseña con el aviso «La bóveda se bloqueó por inactividad.», que se ve durante unos segundos.
 - Al terminar conviene volver a poner `300`, para que no se bloquee durante el resto de la demostración.
 
 **9. Cambiar la contraseña maestra**
@@ -200,9 +200,10 @@ Antes de empezar, arrancar `pvlt` con `docker compose up` y abrir el enlace como
 
 **10. Exportar e importar**
 - Hacer: pulsar **Exportar**, dejar el nombre `exportacion.pvlt`, escribir una contraseña de exportación (por ejemplo `demo-exportar-1`) dos veces y pulsar **Exportar**.
-- Después pulsar **Importar**, escribir `exportacion.pvlt` y la contraseña de exportación, y pulsar **Vista previa**.
-- Debe verse: todas las entradas marcadas como conflicto, porque ya están en la bóveda. Para cada una se elige **Omitir**, **Sustituir** o **Conservar ambas**, y **Aplicar** lo ejecuta en un solo guardado. Con «Conservar ambas» la entrada aparece dos veces en la lista.
-- Variante: con una contraseña de exportación equivocada, la importación se rechaza.
+- Debe verse: «Exportadas N entradas a exportacion.pvlt.»
+- Después pulsar **Importar**, elegir `exportacion.pvlt` en la lista de archivos, escribir la contraseña de exportación y pulsar **Vista previa**.
+- Debe verse: «El archivo tiene N entradas, N en conflicto.», porque todas ya están en la bóveda. Para cada una se elige **Omitir**, **Sustituir** o **Conservar ambas** en la columna «Decisión», y **Aplicar** lo ejecuta en un solo guardado. El aviso resume cuántas se añadieron, sustituyeron, duplicaron u omitieron, y con «Conservar ambas» la entrada aparece dos veces en la lista.
+- Variante: con una contraseña de exportación equivocada aparece «Contraseña incorrecta» y no se muestra la vista previa.
 
 **11. Recuperación tras un archivo dañado**
 - Hacer: detener `pvlt` con **Ctrl+C**. Dañar un bit de la bóveda y volver a arrancar:
@@ -214,7 +215,7 @@ Antes de empezar, arrancar `pvlt` con `docker compose up` y abrir el enlace como
 
     El primer comando responde «Se invirtió un bit del byte 200 de /data/boveda.pvlt.»
 - Abrir el enlace nuevo que imprime la terminal.
-- Debe verse: «La bóveda está dañada, pero el respaldo está bien» y el botón **Restaurar el respaldo**. Al pulsarlo y confirmar, el archivo dañado se conserva aparte como `boveda.pvlt.damaged-<fecha>` y la bóveda se abre con la contraseña `demo-maestra-2` en su versión anterior. El respaldo es la versión previa al último guardado, así que la última operación (en este guion, la importación) no aparece.
+- Debe verse: «La bóveda está dañada, pero el respaldo está bien» y el botón **Restaurar el respaldo**. Al pulsarlo y confirmar, aparece «Respaldo restaurado», el archivo dañado se conserva aparte como `boveda.pvlt.damaged-<fecha>` y la bóveda se abre con la contraseña `demo-maestra-2` en su versión anterior. El respaldo es la versión previa al último guardado, así que la última operación (en este guion, la importación) no aparece.
 
 **12. Comprobar que no queda texto claro en disco**
 - Hacer: detener `pvlt` con **Ctrl+C** y buscar en todos los archivos del volumen el nombre de un sitio guardado, por ejemplo `correo.ejemplo`:
